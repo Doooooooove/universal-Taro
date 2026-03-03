@@ -5,6 +5,7 @@ import { supabase } from "./supabaseClient";
 const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tarot-interpret`;
 
 export const getDeepSeekInterpretation = async (
+    spreadId: string,
     spreadName: string,
     question: string,
     cards: Card[],
@@ -27,6 +28,7 @@ export const getDeepSeekInterpretation = async (
                 'Authorization': `Bearer ${session.access_token}`
             },
             body: JSON.stringify({
+                spreadId,
                 spreadName,
                 question,
                 cards,

@@ -22,4 +22,7 @@ CREATE INDEX idx_payment_orders_out_trade ON payment_orders(out_trade_no);
 -- RLS
 ALTER TABLE payment_orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own orders" ON payment_orders FOR SELECT USING (auth.uid() = user_id);
--- 服务端插入/更新需要使用 service_role key 或 SECURITY DEFINER 函数
+-- 允许 service_role 插入订单（Edge Functions 使用）
+CREATE POLICY "Service role can insert orders" ON payment_orders FOR INSERT WITH CHECK (true);
+-- 允许 service_role 更新订单（回调时使用）
+CREATE POLICY "Service role can update orders" ON payment_orders FOR UPDATE USING (true);

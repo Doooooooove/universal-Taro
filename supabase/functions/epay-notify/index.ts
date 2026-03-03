@@ -7,20 +7,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// 验证易支付签名
-function verifySign(params: Record<string, string>, key: string): boolean {
-  const sign = params.sign;
-  const signType = params.sign_type || "MD5";
-  
-  // 过滤空值和签名字段，按 key 排序
+// 验证虎皮椒回调签名
+function verifyHash(params: Record<string, string>, appSecret: string): boolean {
+  const receivedHash = params.hash;
+
+  // 过滤空值和 hash 字段，按 key 排序
   const sortedKeys = Object.keys(params)
-    .filter((k) => k !== "sign" && k !== "sign_type" && params[k] !== "")
+    .filter((k) => k !== "hash" && params[k] !== "" && params[k] !== undefined)
     .sort();
-  
-  const signStr = sortedKeys.map((k) => `${k}=${params[k]}`).join("&") + key;
-  const calculatedSign = md5(signStr);
-  
-  return calculatedSign.toLowerCase() === sign.toLowerCase();
+
+  const stringA = sortedKeys.map((k) => `${k}=${params[k]}`).join("&");
+  const calculatedHash = md5(stringA + appSecret);
+
+  console.log("=== VERIFY HASH DEBUG ===");
+  console.log("stringA:", stringA);
+  console.log("calculatedHash:", calculatedHash);
+  console.log("receivedHash:", receivedHash);
+
+  return calculatedHash.toLowerCase() === receivedHash.toLowerCase();
 }
 
 serve(async (req) => {
@@ -30,9 +34,9 @@ serve(async (req) => {
   }
 
   try {
-    // 易支付回调是 GET 或 POST
+    // 虎皮椒回调是 POST form 表单
     let params: Record<string, string> = {};
-    
+
     if (req.method === "GET") {
       const url = new URL(req.url);
       url.searchParams.forEach((value, key) => {
@@ -45,30 +49,31 @@ serve(async (req) => {
       });
     }
 
-    console.log("Received epay notify:", params);
+    console.log("Received hupijiao notify:", params);
 
     // 获取配置
-    const EPAY_KEY = Deno.env.get("EPAY_KEY");
-    if (!EPAY_KEY) {
-      console.error("EPAY_KEY not configured");
+    const HUPIJIAO_APPSECRET = Deno.env.get("HUPIJIAO_APPSECRET");
+    if (!HUPIJIAO_APPSECRET) {
+      console.error("HUPIJIAO_APPSECRET not configured");
       return new Response("fail", { status: 500 });
     }
 
     // 验证签名
-    const isValid = await verifySign(params, EPAY_KEY);
+    const isValid = verifyHash(params, HUPIJIAO_APPSECRET.trim());
     if (!isValid) {
-      console.error("Invalid signature");
+      console.error("Invalid hash signature");
       return new Response("fail", { status: 400 });
     }
 
-    // 检查交易状态
-    if (params.trade_status !== "TRADE_SUCCESS") {
-      console.log("Trade not success:", params.trade_status);
+    // 检查交易状态 - 虎皮椒用 status=OD 表示支付成功
+    if (params.status !== "OD") {
+      console.log("Trade not success, status:", params.status);
       return new Response("success");
     }
 
-    const outTradeNo = params.out_trade_no;
-    const tradeNo = params.trade_no;
+    // 虎皮椒字段: trade_order_id = 商户订单号, open_order_id = 虎皮椒内部订单号
+    const outTradeNo = params.trade_order_id;
+    const tradeNo = params.open_order_id || params.transaction_id || "";
 
     // 初始化 Supabase 客户端（使用 service_role 才能绕过 RLS）
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -126,7 +131,7 @@ serve(async (req) => {
     return new Response("success");
     
   } catch (error) {
-    console.error("Error processing epay notify:", error);
+    console.error("Error processing hupijiao notify:", error);
     return new Response("fail", { status: 500 });
   }
 });

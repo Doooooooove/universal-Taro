@@ -3,7 +3,7 @@ import { HashRouter as Router, Routes, Route, useNavigate, useLocation, Navigate
 import BottomNav from './components/BottomNav';
 import BackHeader from './components/BackHeader';
 import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, STORE_ITEMS, UNLOCK_THRESHOLD, ENDOWED_PROGRESS } from './constants';
-import { getTarotInterpretation } from './services/geminiService';
+import { getDeepSeekInterpretation as getTarotInterpretation } from './services/deepseekService';
 import { SpreadType, Card, Reading, SpreadConfig } from './types';
 import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -223,7 +223,7 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType>({
     lang: 'zh',
-    setLang: () => {},
+    setLang: () => { },
     t: (key) => key
 });
 
@@ -232,14 +232,14 @@ const useLanguage = () => useContext(LanguageContext);
 // --- Constants ---
 const INITIAL_BALANCE = 30; // UPDATED: Set to 30 as requested
 const DAILY_LOGIN_BONUS = 10;
-const MUSIC_URL = "https://cdn.pixabay.com/audio/2022/10/25/audio_517409292a.mp3"; 
+const MUSIC_URL = "https://cdn.pixabay.com/audio/2022/10/25/audio_517409292a.mp3";
 
 // --- Haptic Feedback Helper ---
 const triggerHaptic = () => {
     try {
         const settings = JSON.parse(localStorage.getItem('user_settings') || '{}');
         const isHapticEnabled = settings.haptic !== false;
-        
+
         if (isHapticEnabled && navigator.vibrate) {
             navigator.vibrate(10);
         }
@@ -251,7 +251,7 @@ const triggerStrongHaptic = () => {
         if (navigator.vibrate) {
             navigator.vibrate([50, 30, 50, 30, 100]);
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 // --- Global State Helper (Local Storage Wrapper) ---
@@ -277,7 +277,7 @@ const getUserTotalRecharge = () => {
 const addToTotalRecharge = (amount: number) => {
     const current = getUserTotalRecharge();
     localStorage.setItem('user_total_recharge', (current + amount).toString());
-    window.dispatchEvent(new Event('balance_updated')); 
+    window.dispatchEvent(new Event('balance_updated'));
 };
 
 const getReadings = (): Reading[] => {
@@ -320,11 +320,11 @@ const getAuth = (): AuthData | null => {
 };
 
 const setAuth = (identifier: string, type: 'phone' | 'email') => {
-    const authData: AuthData = { 
-        identifier, 
+    const authData: AuthData = {
+        identifier,
         type,
         id: Date.now().toString(),
-        loginTime: new Date().toISOString() 
+        loginTime: new Date().toISOString()
     };
     localStorage.setItem('user_auth', JSON.stringify(authData));
     window.dispatchEvent(new Event('auth_updated'));
@@ -372,7 +372,7 @@ const BackgroundMusic = () => {
         audioRef.current = audio;
 
         const attemptPlay = () => {
-             audio.play().then(() => {
+            audio.play().then(() => {
                 setIsPlaying(true);
             }).catch(e => {
                 const startAudio = () => {
@@ -392,7 +392,7 @@ const BackgroundMusic = () => {
         const checkSettingsAndPlay = () => {
             const settings = getSettings();
             if (settings.music && !document.hidden) {
-               attemptPlay();
+                attemptPlay();
             } else {
                 audio.pause();
                 setIsPlaying(false);
@@ -404,7 +404,7 @@ const BackgroundMusic = () => {
             if (document.hidden) {
                 audio.pause();
             } else if (settings.music) {
-                audio.play().catch(() => {}); 
+                audio.play().catch(() => { });
             }
         };
 
@@ -434,7 +434,7 @@ const NebulaProgress = ({ current, target, isEndowed }: { current: number, targe
 
     return (
         <div className="relative w-full h-4 bg-[#0f0518] rounded-full overflow-hidden border border-white/10 shadow-inner">
-            <div className="absolute inset-0 opacity-30" style={{backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
+            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
             <div className="absolute top-0 left-0 h-full transition-all duration-[1500ms] ease-out relative overflow-hidden" style={{ width: `${progress}%`, background: getGradient() }}>
                 <div className="absolute inset-0 animate-[shimmer_2s_linear_infinite] bg-white/20"></div>
                 {progress > 80 && <div className="absolute right-0 top-0 h-full w-4 bg-white/60 blur-[4px] animate-pulse"></div>}
@@ -446,12 +446,12 @@ const NebulaProgress = ({ current, target, isEndowed }: { current: number, targe
 
 const GrandUnlockOverlay = ({ onClose }: { onClose: () => void }) => {
     const { t } = useLanguage();
-    
+
     useEffect(() => {
         triggerStrongHaptic();
-        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/09/audio_a7e2335f60.mp3"); 
+        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/09/audio_a7e2335f60.mp3");
         audio.volume = 0.5;
-        audio.play().catch(() => {});
+        audio.play().catch(() => { });
     }, []);
 
     return (
@@ -464,7 +464,7 @@ const GrandUnlockOverlay = ({ onClose }: { onClose: () => void }) => {
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="material-symbols-outlined text-8xl text-primary animate-[bounce_3s_infinite] drop-shadow-[0_0_30px_rgba(244,192,37,0.8)]">auto_awesome</span>
                     </div>
-                    {Array.from({length: 8}).map((_, i) => (
+                    {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="absolute size-2 bg-white rounded-full top-1/2 left-1/2" style={{ animation: `float 2s ease-in-out infinite ${i * 0.2}s`, transform: `rotate(${i * 45}deg) translateX(100px)` }}></div>
                     ))}
                 </div>
@@ -482,10 +482,10 @@ const DailyBonusModal = ({ onClose }: { onClose: () => void }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative w-full max-w-sm bg-[#1a0b2e] border border-primary/30 rounded-2xl p-8 flex flex-col items-center text-center shadow-[0_0_50px_rgba(244,192,37,0.2)] animate-[float_4s_ease-in-out_infinite]">
-                <div className="absolute -top-12"><div className="relative size-24"><div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse"></div><div className="relative size-24 bg-gradient-to-br from-primary to-[#b4860b] rounded-full border-4 border-[#1a0b2e] flex items-center justify-center shadow-lg"><span className="material-symbols-outlined text-4xl text-[#1a0b2e]" style={{fontVariationSettings: "'FILL' 1"}}>calendar_month</span></div></div></div>
+                <div className="absolute -top-12"><div className="relative size-24"><div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse"></div><div className="relative size-24 bg-gradient-to-br from-primary to-[#b4860b] rounded-full border-4 border-[#1a0b2e] flex items-center justify-center shadow-lg"><span className="material-symbols-outlined text-4xl text-[#1a0b2e]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span></div></div></div>
                 <h2 className="text-2xl font-bold text-white mt-8 mb-2">{t('bonus.title')}</h2>
                 <p className="text-[#bab29c] text-sm mb-6">{t('bonus.desc')}</p>
-                <div className="flex items-center gap-2 text-4xl font-bold text-primary mb-8 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)]"><span>+{DAILY_LOGIN_BONUS}</span><span className="material-symbols-outlined text-3xl" style={{fontVariationSettings: "'FILL' 1"}}>monetization_on</span></div>
+                <div className="flex items-center gap-2 text-4xl font-bold text-primary mb-8 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)]"><span>+{DAILY_LOGIN_BONUS}</span><span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span></div>
                 <button onClick={onClose} className="w-full py-3.5 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg">{t('bonus.btn')}</button>
             </div>
         </div>
@@ -539,12 +539,12 @@ const TermsModal = ({ onClose }: { onClose: () => void }) => {
     const { t } = useLanguage();
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 animate-in fade-in duration-200">
-             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-             <div className="relative w-full max-w-sm bg-[#1a0b2e] border border-white/20 rounded-2xl p-6 flex flex-col shadow-2xl max-h-[80vh]">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative w-full max-w-sm bg-[#1a0b2e] border border-white/20 rounded-2xl p-6 flex flex-col shadow-2xl max-h-[80vh]">
                 <h3 className="text-xl font-bold text-white mb-4 text-center">{t('terms.title')}</h3>
                 <div className="overflow-y-auto pr-2 mb-6 text-white/70 text-sm leading-relaxed whitespace-pre-line">{t('terms.content')}</div>
                 <button onClick={onClose} className="w-full py-3 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl">OK</button>
-             </div>
+            </div>
         </div>
     );
 };
@@ -564,7 +564,7 @@ const TypewriterText = ({ text, onComplete }: { text: string, onComplete: () => 
     const safeText = text || '';
     const [displayedText, setDisplayedText] = useState('');
     const [currentIndex, setCurrentIndex] = useState(0);
-    const speed = 20; 
+    const speed = 20;
 
     const finish = () => { setDisplayedText(safeText); setCurrentIndex(safeText.length); onComplete(); };
 
@@ -593,152 +593,152 @@ const TypewriterText = ({ text, onComplete }: { text: string, onComplete: () => 
 
 // --- Starmail Login Modal (Fixed Interaction) ---
 const LoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose: () => void; onLogin: (email: string) => void }) => {
-  const [step, setStep] = useState<'email' | 'code'>('email');
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState<'email' | 'code'>('email');
+    const [email, setEmail] = useState('');
+    const [code, setCode] = useState('');
+    const [loading, setLoading] = useState(false);
 
-  // Stop propagation to prevent backdrop close
-  const handleModalClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
+    // Stop propagation to prevent backdrop close
+    const handleModalClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+    };
 
-  const handleSendCode = (e: React.MouseEvent) => {
-    e.preventDefault(); 
-    if (email.length < 3) return; // Simple validation
-    
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setStep('code');
-    }, 1000);
-  };
+    const handleSendCode = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (email.length < 3) return; // Simple validation
 
-  const handleVerify = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (code.length === 0) return; 
-    
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onLogin(email);
-      onClose();
-    }, 1000);
-  };
+        setLoading(true);
+        setTimeout(() => {
+            setLoading(false);
+            setStep('code');
+        }, 1000);
+    };
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 font-sans">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          />
-          
-          {/* Modal Content */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            onClick={handleModalClick} // Stop propagation
-            className="relative w-full max-w-md bg-[#1a0b2e] border border-white/10 rounded-2xl p-8 overflow-hidden shadow-[0_0_50px_rgba(124,58,237,0.3)] z-50"
-          >
-            {/* Visuals */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-transparent pointer-events-none"></div>
-            <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-600/30 rounded-full blur-[60px]"></div>
-            
-            <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(244,192,37,0.2)]">
-                <Sparkles className="text-[#f4c025] w-8 h-8 animate-pulse" />
-              </div>
+    const handleVerify = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (code.length === 0) return;
 
-              <h2 className="text-2xl font-bold text-white mb-2 tracking-wide font-display">
-                {step === 'email' ? 'Link Your Soul' : 'Cosmic Verification'}
-              </h2>
-              
-              <p className="text-white/40 text-xs mb-8 tracking-wider uppercase">
-                Universal Access Protocol
-              </p>
+        setLoading(true);
+        setTimeout(() => {
+            setLoading(false);
+            onLogin(email);
+            onClose();
+        }, 1000);
+    };
 
-              {step === 'email' ? (
-                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
-                  <div className="text-left">
-                    <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
-                      Starmail Address
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
-                        <Mail size={18} />
-                      </div>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="cosmos@example.com"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
-                        autoFocus
-                      />
-                    </div>
-                    <p className="text-white/40 text-[10px] mt-3 leading-relaxed text-center font-light px-2">
-                      请输入你的星际投递地址 (Email)，接收宇宙的指引。
-                    </p>
-                  </div>
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 font-sans">
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={onClose}
+                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                    />
 
-                  <button
-                    type="button" 
-                    onClick={handleSendCode}
-                    disabled={email.length < 3 || loading}
-                    className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {loading ? <Loader2 className="animate-spin" /> : <>Send Starlight Code <ArrowRight size={18} /></>}
-                  </button>
+                    {/* Modal Content */}
+                    <motion.div
+                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        onClick={handleModalClick} // Stop propagation
+                        className="relative w-full max-w-md bg-[#1a0b2e] border border-white/10 rounded-2xl p-8 overflow-hidden shadow-[0_0_50px_rgba(124,58,237,0.3)] z-50"
+                    >
+                        {/* Visuals */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-transparent pointer-events-none"></div>
+                        <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-600/30 rounded-full blur-[60px]"></div>
+
+                        <div className="relative z-10 flex flex-col items-center text-center">
+                            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_20px_rgba(244,192,37,0.2)]">
+                                <Sparkles className="text-[#f4c025] w-8 h-8 animate-pulse" />
+                            </div>
+
+                            <h2 className="text-2xl font-bold text-white mb-2 tracking-wide font-display">
+                                {step === 'email' ? 'Link Your Soul' : 'Cosmic Verification'}
+                            </h2>
+
+                            <p className="text-white/40 text-xs mb-8 tracking-wider uppercase">
+                                Universal Access Protocol
+                            </p>
+
+                            {step === 'email' ? (
+                                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                                    <div className="text-left">
+                                        <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
+                                            Starmail Address
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
+                                                <Mail size={18} />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                placeholder="cosmos@example.com"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <p className="text-white/40 text-[10px] mt-3 leading-relaxed text-center font-light px-2">
+                                            请输入你的星际投递地址 (Email)，接收宇宙的指引。
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleSendCode}
+                                        disabled={email.length < 3 || loading}
+                                        className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" /> : <>Send Starlight Code <ArrowRight size={18} /></>}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                                    <div className="text-left">
+                                        <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
+                                            Verification Code
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
+                                                <Lock size={18} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={code}
+                                                onChange={(e) => setCode(e.target.value)}
+                                                placeholder="000000"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans tracking-[0.5em] text-center font-bold text-lg"
+                                                autoFocus
+                                                maxLength={6}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleVerify}
+                                        disabled={loading}
+                                        className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" /> : <>Connect to Source <Star size={18} fill="currentColor" /></>}
+                                    </button>
+
+                                    <button type="button" onClick={() => setStep('email')} className="text-xs text-white/30 hover:text-white transition-colors w-full text-center py-2">
+                                        Use different starmail
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
                 </div>
-              ) : (
-                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
-                  <div className="text-left">
-                    <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
-                      Verification Code
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
-                        <Lock size={18} />
-                      </div>
-                      <input
-                        type="text" 
-                        value={code}
-                        onChange={(e) => setCode(e.target.value)}
-                        placeholder="000000"
-                        className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans tracking-[0.5em] text-center font-bold text-lg"
-                        autoFocus
-                        maxLength={6}
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button" 
-                    onClick={handleVerify}
-                    disabled={loading} 
-                    className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {loading ? <Loader2 className="animate-spin" /> : <>Connect to Source <Star size={18} fill="currentColor" /></>}
-                  </button>
-                  
-                  <button type="button" onClick={() => setStep('email')} className="text-xs text-white/30 hover:text-white transition-colors w-full text-center py-2">
-                    Use different starmail
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
+            )}
+        </AnimatePresence>
+    );
 };
 
 // --- Pages ---
@@ -762,11 +762,11 @@ const HomePage = () => {
             if (lastLoginDate !== today) {
                 const currentBalance = getUserBalance();
                 const isFreshUser = localStorage.getItem('user_balance') === null;
-                
+
                 // Endowed Progress Initialization check
                 // If user has no record of total recharge, give them the endowment
                 const totalRecharge = localStorage.getItem('user_total_recharge');
-                if(!totalRecharge) {
+                if (!totalRecharge) {
                     localStorage.setItem('user_total_recharge', ENDOWED_PROGRESS.toString());
                 }
 
@@ -781,7 +781,7 @@ const HomePage = () => {
         };
 
         checkDailyLogin();
-        
+
         const preloadImages = () => {
             const images = [CARD_BACK_IMAGE, ...MOCK_CARDS.map(c => c.image)];
             images.forEach(src => {
@@ -828,12 +828,12 @@ const HomePage = () => {
     return (
         <div className="bg-background-dark font-display text-white min-h-[100dvh] relative overflow-hidden">
             {showDailyBonus && <DailyBonusModal onClose={() => setShowDailyBonus(false)} />}
-            <LoginModal 
-                isOpen={showLoginModal} 
-                onClose={() => setShowLoginModal(false)} 
+            <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
                 onLogin={handleLoginSuccess}
             />
-            
+
             <div className="fixed inset-0 z-0 pointer-events-none nebula-bg"></div>
             <div className="relative flex h-full min-h-[100dvh] w-full flex-col pb-24 z-10">
                 <div className="pt-16 px-6 pb-8">
@@ -847,7 +847,7 @@ const HomePage = () => {
                                 <span className="text-xs font-bold">{lang === 'zh' ? 'En' : '中'}</span>
                             </button>
                             <div onClick={() => handleNavigate('/store')} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-md border border-primary/30 shadow-[0_0_12px_rgba(244,192,37,0.15)] hover:bg-white/10 transition-colors">
-                                <span className="material-symbols-outlined text-primary text-[18px]" style={{fontVariationSettings: "'FILL' 1"}}>monetization_on</span>
+                                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span>
                                 <span className="text-xs font-medium text-white/90 tracking-wide">{t('app.balance')}: <span className="text-primary font-bold ml-0.5">{balance}</span></span>
                             </div>
                         </div>
@@ -865,9 +865,9 @@ const HomePage = () => {
                     </h2>
                     <div className="flex flex-col gap-4">
                         {Object.values(SPREADS).map((spread: SpreadConfig) => (
-                            <button 
+                            <button
                                 key={spread.id}
-                                onClick={() => handleSpreadClick(spread.id)} 
+                                onClick={() => handleSpreadClick(spread.id)}
                                 className="glass-panel w-full p-0 rounded-2xl text-left group hover:border-primary/40 transition-all duration-300"
                             >
                                 <div className="relative overflow-hidden rounded-2xl p-5 flex items-center gap-5">
@@ -893,7 +893,7 @@ const HomePage = () => {
                             </button>
                         ))}
                     </div>
-                    
+
                     <p className="text-[10px] text-white/30 text-center mt-8 pb-4">
                         {t('app.disclaimer')}
                     </p>
@@ -916,10 +916,10 @@ const QuestionGuide = () => {
     const handleStart = () => {
         triggerHaptic();
         if (!spread) return;
-        
+
         const currentBalance = getUserBalance();
         let actualCost = spread.cost;
-        
+
         if (currentBalance < actualCost) {
             setShowNoFundsModal(true);
             return;
@@ -931,12 +931,12 @@ const QuestionGuide = () => {
     return (
         <div className="relative flex h-full min-h-[100dvh] w-full flex-col bg-background-dark overflow-x-hidden">
             {showNoFundsModal && (
-                <InsufficientFundsModal 
+                <InsufficientFundsModal
                     onClose={() => setShowNoFundsModal(false)}
                     onGoStore={() => navigate('/store', { state: { returnTo: location.pathname, returnState: { spreadId, question } } })}
                 />
             )}
-            
+
             <div className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-b from-[#2e1065] via-[#1e1b4b] to-[#0f172a] opacity-90"></div>
             <div className="relative z-10 flex flex-col h-full min-h-[100dvh]">
                 <BackHeader title={t('guide.title')} rightIcon="help" onBack={() => navigate('/')} />
@@ -948,10 +948,10 @@ const QuestionGuide = () => {
                     <div className="w-full mb-8 relative group">
                         <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition duration-500 blur"></div>
                         <div className="relative">
-                            <textarea 
+                            <textarea
                                 value={question}
                                 onChange={(e) => setQuestion(e.target.value)}
-                                className="glass-panel w-full resize-none rounded-2xl text-white bg-transparent focus:outline-0 focus:ring-1 focus:ring-primary/50 border-white/10 min-h-[220px] placeholder:text-white/30 p-6 text-lg font-normal leading-relaxed shadow-lg animate-breathing-glow transition-all duration-300" 
+                                className="glass-panel w-full resize-none rounded-2xl text-white bg-transparent focus:outline-0 focus:ring-1 focus:ring-primary/50 border-white/10 min-h-[220px] placeholder:text-white/30 p-6 text-lg font-normal leading-relaxed shadow-lg animate-breathing-glow transition-all duration-300"
                                 placeholder={t('guide.placeholder')}
                             ></textarea>
                             <span className="material-symbols-outlined absolute bottom-4 right-4 text-white/10 pointer-events-none select-none text-3xl">auto_awesome</span>
@@ -960,7 +960,7 @@ const QuestionGuide = () => {
                 </div>
                 <div className="fixed bottom-0 w-full z-50">
                     <div className="absolute bottom-[90px] left-0 right-0 px-6 flex justify-center pointer-events-none">
-                        <button 
+                        <button
                             onClick={handleStart}
                             className="pointer-events-auto shadow-[0_0_30px_rgba(244,192,37,0.4)] flex w-full max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 bg-gradient-to-r from-[#f4c025] to-[#eab308] text-[#1a1625] text-lg font-bold tracking-wide hover:brightness-110 active:scale-[0.98] transition-all duration-200"
                         >
@@ -981,7 +981,7 @@ const PaymentScreen = () => {
     const location = useLocation();
     const { spreadId, question } = location.state || { spreadId: 'daily', question: '' };
     const spread = SPREADS[spreadId];
-    
+
     const deductionPerformedRef = useRef(false);
 
     useEffect(() => {
@@ -991,8 +991,8 @@ const PaymentScreen = () => {
                 setUserBalance(currentBalance - spread.cost);
                 deductionPerformedRef.current = true;
             } else {
-                 navigate('/store');
-                 return;
+                navigate('/store');
+                return;
             }
         }
         const timer = setTimeout(() => {
@@ -1004,23 +1004,23 @@ const PaymentScreen = () => {
 
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden">
-            <button 
+            <button
                 onClick={() => navigate(-1)}
                 className="absolute top-12 left-6 z-50 flex items-center justify-center size-10 rounded-full bg-black/20 text-white/70 hover:bg-black/40 hover:text-white transition-all backdrop-blur-md border border-white/5"
             >
-                <span className="material-symbols-outlined" style={{fontSize: "20px"}}>close</span>
+                <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>close</span>
             </button>
 
             <div className="absolute inset-0 z-0">
-               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-mystic-purple/80 via-background-dark to-deep-space"></div>
-               <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px]"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-mystic-purple/80 via-background-dark to-deep-space"></div>
+                <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-[100px]"></div>
             </div>
             <div className="relative z-10 flex flex-col h-full w-full justify-center items-center">
                 <div className="relative size-64 flex items-center justify-center mb-8">
                     <div className="absolute inset-0 bg-primary/20 rounded-full blur-[60px] animate-pulse-slow"></div>
                     <div className="relative size-32 animate-float">
                         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-[#D4A010] to-[#8E6A05] shadow-[0_0_30px_rgba(244,192,37,0.4)] opacity-80 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-background-dark/80 drop-shadow-sm" style={{fontSize: "64px"}}>monetization_on</span>
+                            <span className="material-symbols-outlined text-background-dark/80 drop-shadow-sm" style={{ fontSize: "64px" }}>monetization_on</span>
                         </div>
                         <div className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full animate-ping"></div>
                         <div className="absolute bottom-2 left-2 w-1.5 h-1.5 bg-white rounded-full animate-ping delay-100"></div>
@@ -1033,7 +1033,7 @@ const PaymentScreen = () => {
                 </div>
                 <div className="mt-8 px-8 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
                     <p className="text-white/80 text-sm font-medium tracking-wider text-center flex items-center gap-2 font-body">
-                        <span className="material-symbols-outlined animate-spin" style={{fontSize: "16px"}}>auto_awesome</span>
+                        <span className="material-symbols-outlined animate-spin" style={{ fontSize: "16px" }}>auto_awesome</span>
                         {t('payment.gathering')}
                     </p>
                 </div>
@@ -1056,9 +1056,9 @@ const ShuffleScreen = () => {
                     <div className="absolute w-44 h-72 rounded-xl bg-[#1a1625] border border-primary/20 rotate-[-15deg] translate-y-4 -translate-x-4 opacity-40 blur-[1px] animate-pulse"></div>
                     <div className="absolute w-44 h-72 rounded-xl bg-[#1a1625] border border-primary/20 rotate-[12deg] translate-y-2 translate-x-3 opacity-60 blur-[0.5px] animate-pulse delay-75"></div>
                     <div className="absolute w-44 h-72 rounded-xl bg-[#1a1625] border-[1.5px] border-primary/60 shadow-[0_0_30px_rgba(244,192,37,0.2)] z-10 flex flex-col items-center justify-center overflow-hidden animate-float">
-                        <div className="absolute inset-0 opacity-40 bg-cover bg-center mix-blend-soft-light" style={{backgroundImage: `url(${CARD_BACK_IMAGE})`}}></div>
+                        <div className="absolute inset-0 opacity-40 bg-cover bg-center mix-blend-soft-light" style={{ backgroundImage: `url(${CARD_BACK_IMAGE})` }}></div>
                         <div className="absolute inset-3 border border-primary/20 rounded-lg flex flex-col items-center justify-center">
-                            <span className="material-symbols-outlined text-primary/40 text-5xl animate-spin" style={{animationDuration: '3s'}}>auto_awesome</span>
+                            <span className="material-symbols-outlined text-primary/40 text-5xl animate-spin" style={{ animationDuration: '3s' }}>auto_awesome</span>
                         </div>
                     </div>
                 </div>
@@ -1071,7 +1071,7 @@ const ShuffleScreen = () => {
                 </div>
             </div>
             <div className="relative z-40 w-full flex flex-col items-center pb-32 px-4">
-                <button 
+                <button
                     onClick={() => { triggerHaptic(); navigate('/draw', { state: { spreadId, question } }); }}
                     className="relative group"
                 >
@@ -1093,16 +1093,16 @@ const DrawScreen = () => {
     const location = useLocation();
     const { spreadId, question } = location.state || { spreadId: 'daily', question: '' };
     const spread = SPREADS[spreadId];
-    
+
     const [drawnCards, setDrawnCards] = useState<Card[]>([]);
-    
+
     const drawCard = () => {
         triggerHaptic();
-        
+
         // UNLOCK LOGIC: Switch pool based on threshold
         const totalRecharge = getUserTotalRecharge();
         const isMinorUnlocked = totalRecharge >= UNLOCK_THRESHOLD;
-        
+
         // Filter cards based on unlock status
         // Major Arcana have purely numeric IDs '0'...'21', Minor have 'w_ace', 'w_10' etc.
         const availablePool = MOCK_CARDS.filter(c => {
@@ -1112,11 +1112,11 @@ const DrawScreen = () => {
 
         // Filter out already drawn
         const remaining = availablePool.filter(c => !drawnCards.find(dc => dc.id === c.id));
-        
+
         if (remaining.length === 0) return { ...MOCK_CARDS[0], isUpright: true }; // Fallback
 
         const random = remaining[Math.floor(Math.random() * remaining.length)];
-        const isUpright = Math.random() > 0.2; 
+        const isUpright = Math.random() > 0.2;
         return { ...random, isUpright };
     };
 
@@ -1125,7 +1125,7 @@ const DrawScreen = () => {
             const newCard = drawCard();
             const newDrawn = [...drawnCards, newCard];
             setDrawnCards(newDrawn);
-            
+
             if (newDrawn.length === spread.cardCount) {
                 setTimeout(() => {
                     navigate('/reading', { state: { spreadId, question, cards: newDrawn }, replace: true });
@@ -1139,18 +1139,18 @@ const DrawScreen = () => {
 
     const renderSlots = () => {
         if (spreadId === 'daily') {
-             return (
+            return (
                 <div className="flex flex-col items-center justify-center w-full h-full">
-                     <div className={`relative w-[200px] aspect-[2/3] rounded-xl border-2 border-dashed ${drawnCards[0] ? 'border-primary border-solid' : 'border-primary/30'} bg-white/5 flex flex-col items-center justify-center backdrop-blur-sm shadow-[0_0_30px_rgba(244,192,37,0.1)] transition-all duration-500`}>
+                    <div className={`relative w-[200px] aspect-[2/3] rounded-xl border-2 border-dashed ${drawnCards[0] ? 'border-primary border-solid' : 'border-primary/30'} bg-white/5 flex flex-col items-center justify-center backdrop-blur-sm shadow-[0_0_30px_rgba(244,192,37,0.1)] transition-all duration-500`}>
                         {drawnCards[0] ? (
-                            <div className="w-full h-full rounded-xl bg-cover bg-center animate-flip" style={{backgroundImage: `url(${CARD_BACK_IMAGE})`}}></div>
+                            <div className="w-full h-full rounded-xl bg-cover bg-center animate-flip" style={{ backgroundImage: `url(${CARD_BACK_IMAGE})` }}></div>
                         ) : (
                             <span className="material-symbols-outlined text-primary/40 animate-pulse text-5xl">shutter_speed</span>
                         )}
-                     </div>
-                     <p className="mt-4 text-primary font-bold text-sm tracking-widest uppercase">{t('draw.daily_label')}</p>
+                    </div>
+                    <p className="mt-4 text-primary font-bold text-sm tracking-widest uppercase">{t('draw.daily_label')}</p>
                 </div>
-             );
+            );
         }
 
         if (spreadId === 'three_card') {
@@ -1159,11 +1159,11 @@ const DrawScreen = () => {
                     {spreadPositions.map((pos, idx) => (
                         <div key={idx} className="flex flex-col items-center gap-2 w-1/3">
                             <div className={`relative w-full aspect-[2/3] rounded-lg border border-dashed ${drawnCards[idx] ? 'border-primary border-solid shadow-[0_0_15px_rgba(244,192,37,0.3)]' : 'border-white/20 bg-white/5'} flex items-center justify-center transition-all duration-300`}>
-                                 {drawnCards[idx] ? (
-                                    <div className="w-full h-full rounded-lg bg-cover bg-center" style={{backgroundImage: `url(${CARD_BACK_IMAGE})`}}></div>
-                                 ) : (
-                                     <span className="text-white/20 font-bold">{idx + 1}</span>
-                                 )}
+                                {drawnCards[idx] ? (
+                                    <div className="w-full h-full rounded-lg bg-cover bg-center" style={{ backgroundImage: `url(${CARD_BACK_IMAGE})` }}></div>
+                                ) : (
+                                    <span className="text-white/20 font-bold">{idx + 1}</span>
+                                )}
                             </div>
                             <p className={`text-[10px] font-bold tracking-widest uppercase ${drawnCards[idx] ? 'text-primary' : 'text-white/40'}`}>{pos}</p>
                         </div>
@@ -1171,57 +1171,57 @@ const DrawScreen = () => {
                 </div>
             )
         }
-        
+
         if (spreadId === 'hexagram') {
-             const positionsStyle = [
-                 { top: '15%', left: '50%' }, // 1. Top (Up-Tri tip)
-                 { top: '75%', left: '85%' }, // 2. Bottom Right (Up-Tri corner)
-                 { top: '75%', left: '15%' }, // 3. Bottom Left (Up-Tri corner)
-                 { top: '85%', left: '50%' }, // 4. Bottom (Down-Tri tip)
-                 { top: '25%', left: '15%' }, // 5. Top Left (Down-Tri corner)
-                 { top: '25%', left: '85%' }, // 6. Top Right (Down-Tri corner)
-                 { top: '50%', left: '50%' }, // 7. Center
-             ];
-             
-             return (
-                 <div className="relative w-full h-[360px] max-w-[340px] mx-auto">
-                     <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30 z-0" viewBox="0 0 100 100" preserveAspectRatio="none">
-                         <polygon points="50,15 85,75 15,75" fill="none" stroke="#f4c025" strokeWidth="0.5" />
-                         <polygon points="50,85 15,25 85,25" fill="none" stroke="#f4c025" strokeWidth="0.5" />
-                     </svg>
-                     
-                     {spreadPositions.map((pos, idx) => {
-                         const style = positionsStyle[idx];
-                         const isCenter = idx === 6;
-                         const transform = 'translate(-50%, -50%)';
-                         return (
-                             <div 
-                                key={idx} 
+            const positionsStyle = [
+                { top: '15%', left: '50%' }, // 1. Top (Up-Tri tip)
+                { top: '75%', left: '85%' }, // 2. Bottom Right (Up-Tri corner)
+                { top: '75%', left: '15%' }, // 3. Bottom Left (Up-Tri corner)
+                { top: '85%', left: '50%' }, // 4. Bottom (Down-Tri tip)
+                { top: '25%', left: '15%' }, // 5. Top Left (Down-Tri corner)
+                { top: '25%', left: '85%' }, // 6. Top Right (Down-Tri corner)
+                { top: '50%', left: '50%' }, // 7. Center
+            ];
+
+            return (
+                <div className="relative w-full h-[360px] max-w-[340px] mx-auto">
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-30 z-0" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <polygon points="50,15 85,75 15,75" fill="none" stroke="#f4c025" strokeWidth="0.5" />
+                        <polygon points="50,85 15,25 85,25" fill="none" stroke="#f4c025" strokeWidth="0.5" />
+                    </svg>
+
+                    {spreadPositions.map((pos, idx) => {
+                        const style = positionsStyle[idx];
+                        const isCenter = idx === 6;
+                        const transform = 'translate(-50%, -50%)';
+                        return (
+                            <div
+                                key={idx}
                                 className={`absolute w-[45px] h-[70px] ${isCenter ? 'w-[55px] h-[85px] z-10' : 'z-1'}`}
                                 style={{ ...style, transform }}
-                             >
-                                 <div className={`w-full h-full rounded border ${drawnCards[idx] ? 'border-primary shadow-[0_0_10px_rgba(244,192,37,0.5)]' : 'border-white/20 bg-white/5 border-dashed'} flex items-center justify-center transition-all duration-300`}>
-                                     {drawnCards[idx] ? (
-                                         <div className="w-full h-full rounded bg-cover bg-center" style={{backgroundImage: `url(${CARD_BACK_IMAGE})`}}></div>
-                                     ) : (
-                                         <span className="text-[10px] text-white/30">{idx+1}</span>
-                                     )}
-                                 </div>
-                             </div>
-                         )
-                     })}
-                 </div>
-             )
+                            >
+                                <div className={`w-full h-full rounded border ${drawnCards[idx] ? 'border-primary shadow-[0_0_10px_rgba(244,192,37,0.5)]' : 'border-white/20 bg-white/5 border-dashed'} flex items-center justify-center transition-all duration-300`}>
+                                    {drawnCards[idx] ? (
+                                        <div className="w-full h-full rounded bg-cover bg-center" style={{ backgroundImage: `url(${CARD_BACK_IMAGE})` }}></div>
+                                    ) : (
+                                        <span className="text-[10px] text-white/30">{idx + 1}</span>
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )
         }
     };
 
-    const deckCards = 22; 
-    
+    const deckCards = 22;
+
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden">
             <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#3a206e] via-[#110b1f] to-[#05030a]"></div>
             <BackHeader title={spreadName} />
-            
+
             <main className="flex-1 flex flex-col items-center justify-center w-full px-4 pb-20 relative z-10">
                 {renderSlots()}
                 <div className="mt-8 text-center">
@@ -1237,10 +1237,10 @@ const DrawScreen = () => {
                         const offset = i - (deckCards - 1) / 2;
                         const rotate = offset * 2.5;
                         const translateY = Math.abs(offset) * 2;
-                        const xOffset = offset * 14; 
+                        const xOffset = offset * 14;
 
                         return (
-                            <div 
+                            <div
                                 key={i}
                                 onClick={handleDeckClick}
                                 className="absolute bottom-0 w-20 h-32 rounded-lg shadow-2xl border border-[#f4c025]/30 bg-[#1e152f] cursor-pointer origin-bottom transition-all duration-300 hover:-translate-y-6 hover:scale-110 hover:z-50 group pointer-events-auto"
@@ -1264,14 +1264,14 @@ const ReadingScreen = () => {
     const navigate = useNavigate();
     const { t, lang } = useLanguage();
     const location = useLocation();
-    
-    const state = location.state as { 
-        spreadId: SpreadType, 
-        question: string, 
+
+    const state = location.state as {
+        spreadId: SpreadType,
+        question: string,
         cards: Card[],
         id?: string,
         interpretation?: string,
-        reading?: Reading 
+        reading?: Reading
     } | null;
 
     const { spreadId, question, cards, id, interpretation: passedInterpretation, reading: passedReading } = state || {
@@ -1284,14 +1284,14 @@ const ReadingScreen = () => {
     };
 
     const spread = SPREADS[spreadId as string];
-    
+
     const [interpretation, setInterpretation] = useState<string>(passedInterpretation || (passedReading ? passedReading.interpretation : ''));
     const [loading, setLoading] = useState(!passedInterpretation && !passedReading);
-    const [isTyping, setIsTyping] = useState(!passedInterpretation && !passedReading); 
+    const [isTyping, setIsTyping] = useState(!passedInterpretation && !passedReading);
     const [isSaved, setIsSaved] = useState(!!id || !!passedReading);
     const [currentReadingId, setCurrentReadingId] = useState<string | undefined>(id || (passedReading ? passedReading.id : undefined));
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-    const [showConfirm, setShowConfirm] = useState<{message: string, action: () => void} | null>(null);
+    const [showConfirm, setShowConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     const spreadPositions = lang === 'zh' ? spread?.positions : spread?.positionsEn;
     const spreadName = lang === 'zh' ? spread?.name : spread?.nameEn;
@@ -1307,19 +1307,19 @@ const ReadingScreen = () => {
             const fetchInterpretation = async () => {
                 const sName = lang === 'zh' ? spread.name : spread.nameEn;
                 const sPos = lang === 'zh' ? spread.positions : spread.positionsEn;
-                const text = await getTarotInterpretation(sName, question, cards, sPos, lang);
+                const text = await getTarotInterpretation(spreadId, sName, question, cards, sPos, lang);
                 setInterpretation(text);
                 setLoading(false);
             };
             fetchInterpretation();
         }
-    }, [state, cards, passedInterpretation, passedReading, question, spread, lang]); 
+    }, [state, cards, passedInterpretation, passedReading, question, spread, lang]);
 
     if (!state) return null;
-    
+
     const displayCards = cards || (passedReading ? passedReading.cards : []);
     const displaySpreadId = spreadId || (passedReading ? passedReading.spreadType : 'daily');
-    
+
     const handleSaveToggle = () => {
         if (loading) return;
         triggerHaptic();
@@ -1358,7 +1358,7 @@ const ReadingScreen = () => {
         const shareText = `${t('reading.share_title')}\n\n` +
             `${t('reading.share_spread')}：${spreadName || (passedReading ? passedReading.spreadName : '')}\n` +
             `${t('reading.share_question')}：${question || (passedReading ? passedReading.question : '')}\n\n` +
-            displayCards.map((c, i) => `${i+1}. ${lang === 'zh' ? c.name : c.nameEn} (${c.isUpright ? t('reading.upright') : t('reading.reversed')})`).join('\n') +
+            displayCards.map((c, i) => `${i + 1}. ${lang === 'zh' ? c.name : c.nameEn} (${c.isUpright ? t('reading.upright') : t('reading.reversed')})`).join('\n') +
             `\n\n${t('reading.share_guidance')}：\n${interpretation.replace(/<[^>]*>/g, '').substring(0, 100)}...\n\n` +
             `From Universal Tarot AI`;
 
@@ -1373,21 +1373,21 @@ const ReadingScreen = () => {
                 showToast(t('reading.copy_success'), 'content_copy');
             }
         } catch (err) {
-             await navigator.clipboard.writeText(shareText);
-             showToast(t('reading.copy_success'), 'content_copy');
+            await navigator.clipboard.writeText(shareText);
+            showToast(t('reading.copy_success'), 'content_copy');
         }
     };
-    
+
     const renderCardDisplay = () => {
         if (displaySpreadId === 'daily') {
             return (
                 <div className="w-full flex justify-center mb-6 mt-4 relative">
                     <div className="relative w-[180px] aspect-[2/3] rounded-xl shadow-[0_0_40px_rgba(244,192,37,0.3)] z-10 transform hover:scale-105 active:scale-95 transition-all duration-300 cursor-zoom-in" onClick={() => setZoomedImage(displayCards[0].image)}>
-                        <div 
-                            className={`w-full h-full rounded-xl bg-cover bg-center border border-primary/30 relative overflow-hidden transition-transform duration-500 ${displayCards[0].isUpright ? '' : 'rotate-180'}`} 
-                            style={{backgroundImage: `url(${displayCards[0].image})`}}
+                        <div
+                            className={`w-full h-full rounded-xl bg-cover bg-center border border-primary/30 relative overflow-hidden transition-transform duration-500 ${displayCards[0].isUpright ? '' : 'rotate-180'}`}
+                            style={{ backgroundImage: `url(${displayCards[0].image})` }}
                         >
-                             <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent"></div>
+                            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent"></div>
                         </div>
                         <div className="absolute -bottom-6 w-full text-center px-2">
                             <span className="text-white font-display font-bold text-lg tracking-wider drop-shadow-md block">{lang === 'zh' ? displayCards[0].name : displayCards[0].nameEn}</span>
@@ -1397,81 +1397,81 @@ const ReadingScreen = () => {
                 </div>
             );
         }
-        
+
         if (displaySpreadId === 'three_card') {
-             return (
-                 <div className="w-full px-4 pt-4 pb-2 shrink-0 flex justify-center">
-                     <div className="flex justify-between items-start gap-3 max-w-[340px] w-full">
-                         {displayCards.map((card, idx) => (
-                             <div key={idx} className="flex flex-col items-center gap-2 w-1/3 group">
-                                 <div 
+            return (
+                <div className="w-full px-4 pt-4 pb-2 shrink-0 flex justify-center">
+                    <div className="flex justify-between items-start gap-3 max-w-[340px] w-full">
+                        {displayCards.map((card, idx) => (
+                            <div key={idx} className="flex flex-col items-center gap-2 w-1/3 group">
+                                <div
                                     className="relative w-full aspect-[2/3] rounded-lg border border-white/10 shadow-lg cursor-zoom-in active:scale-95 transition-transform"
                                     onClick={() => setZoomedImage(card.image)}
-                                 >
-                                     <div className={`w-full h-full bg-cover bg-center rounded-lg ${card.isUpright ? '' : 'rotate-180'}`} style={{backgroundImage: `url(${card.image})`}}></div>
-                                     <div className="absolute -bottom-2 -right-2 bg-black/80 rounded-full w-5 h-5 flex items-center justify-center text-[10px] text-primary border border-primary/30">{idx+1}</div>
-                                 </div>
-                                 <div className="text-center">
-                                     <p className="text-[10px] text-white/50">{spreadPositions ? spreadPositions[idx] : idx+1}</p>
-                                     <p className={`text-xs font-bold ${card.isUpright ? 'text-primary' : 'text-red-400'}`}>{lang === 'zh' ? card.name : card.nameEn} {card.isUpright ? '' : '(R)'}</p>
-                                 </div>
-                             </div>
-                         ))}
-                     </div>
-                 </div>
-             )
+                                >
+                                    <div className={`w-full h-full bg-cover bg-center rounded-lg ${card.isUpright ? '' : 'rotate-180'}`} style={{ backgroundImage: `url(${card.image})` }}></div>
+                                    <div className="absolute -bottom-2 -right-2 bg-black/80 rounded-full w-5 h-5 flex items-center justify-center text-[10px] text-primary border border-primary/30">{idx + 1}</div>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-[10px] text-white/50">{spreadPositions ? spreadPositions[idx] : idx + 1}</p>
+                                    <p className={`text-xs font-bold ${card.isUpright ? 'text-primary' : 'text-red-400'}`}>{lang === 'zh' ? card.name : card.nameEn} {card.isUpright ? '' : '(R)'}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )
         }
 
         if (displaySpreadId === 'hexagram') {
-             return (
-                 <div className="relative w-full h-[200px] mb-4">
-                     <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="grid grid-cols-3 gap-2 scale-75">
-                            {displayCards.slice(0,3).map((c,i) => (
-                                <div key={i} onClick={() => setZoomedImage(c.image)} className={`w-12 h-20 bg-cover bg-center rounded border border-white/20 cursor-zoom-in active:scale-90 transition-transform ${c.isUpright ? '' : 'rotate-180'}`} style={{backgroundImage: `url(${c.image})`}}></div>
+            return (
+                <div className="relative w-full h-[200px] mb-4">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="grid grid-cols-3 gap-2 scale-75">
+                            {displayCards.slice(0, 3).map((c, i) => (
+                                <div key={i} onClick={() => setZoomedImage(c.image)} className={`w-12 h-20 bg-cover bg-center rounded border border-white/20 cursor-zoom-in active:scale-90 transition-transform ${c.isUpright ? '' : 'rotate-180'}`} style={{ backgroundImage: `url(${c.image})` }}></div>
                             ))}
                             <div className="col-span-3 flex justify-center">
-                                <div onClick={() => setZoomedImage(displayCards[6].image)} className={`w-14 h-24 bg-cover bg-center rounded border border-primary shadow-[0_0_15px_rgba(244,192,37,0.5)] cursor-zoom-in active:scale-90 transition-transform ${displayCards[6].isUpright ? '' : 'rotate-180'}`} style={{backgroundImage: `url(${displayCards[6].image})`}}></div>
+                                <div onClick={() => setZoomedImage(displayCards[6].image)} className={`w-14 h-24 bg-cover bg-center rounded border border-primary shadow-[0_0_15px_rgba(244,192,37,0.5)] cursor-zoom-in active:scale-90 transition-transform ${displayCards[6].isUpright ? '' : 'rotate-180'}`} style={{ backgroundImage: `url(${displayCards[6].image})` }}></div>
                             </div>
-                            {displayCards.slice(3,6).map((c,i) => (
-                                <div key={i+3} onClick={() => setZoomedImage(c.image)} className={`w-12 h-20 bg-cover bg-center rounded border border-white/20 cursor-zoom-in active:scale-90 transition-transform ${c.isUpright ? '' : 'rotate-180'}`} style={{backgroundImage: `url(${c.image})`}}></div>
+                            {displayCards.slice(3, 6).map((c, i) => (
+                                <div key={i + 3} onClick={() => setZoomedImage(c.image)} className={`w-12 h-20 bg-cover bg-center rounded border border-white/20 cursor-zoom-in active:scale-90 transition-transform ${c.isUpright ? '' : 'rotate-180'}`} style={{ backgroundImage: `url(${c.image})` }}></div>
                             ))}
-                         </div>
-                     </div>
-                     <p className="absolute bottom-0 w-full text-center text-xs text-white/40 italic">点击卡牌查看大图</p>
-                 </div>
-             )
+                        </div>
+                    </div>
+                    <p className="absolute bottom-0 w-full text-center text-xs text-white/40 italic">点击卡牌查看大图</p>
+                </div>
+            )
         }
     };
 
     return (
         <div className="bg-background-dark text-white font-sans h-screen flex flex-col overflow-hidden">
-             {zoomedImage && <ImageZoomModal image={zoomedImage} onClose={() => setZoomedImage(null)} />}
-             {showConfirm && (
-                <ConfirmModal 
-                    message={showConfirm.message} 
-                    onConfirm={showConfirm.action} 
-                    onCancel={() => setShowConfirm(null)} 
+            {zoomedImage && <ImageZoomModal image={zoomedImage} onClose={() => setZoomedImage(null)} />}
+            {showConfirm && (
+                <ConfirmModal
+                    message={showConfirm.message}
+                    onConfirm={showConfirm.action}
+                    onCancel={() => setShowConfirm(null)}
                 />
-             )}
-             
-             <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-background-dark to-black pointer-events-none"></div>
-             <BackHeader 
-                title={t('reading.title')} 
-                rightIcon="home" 
+            )}
+
+            <div className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-background-dark to-black pointer-events-none"></div>
+            <BackHeader
+                title={t('reading.title')}
+                rightIcon="home"
                 onRightClick={() => navigate('/', { replace: true })}
             />
-             
-             <main className="flex-1 w-full px-4 py-2 overflow-hidden flex flex-col min-h-0 relative z-10">
-                 {renderCardDisplay()}
-                 
-                 <div className="glass-panel rounded-2xl p-6 h-full overflow-y-auto hide-scrollbar flex flex-col gap-4 shadow-inner relative border-t border-white/10">
-                     {loading ? (
-                         <div className="flex flex-col items-center justify-center py-10 gap-4">
-                             <div className="size-10 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                             <p className="text-sm text-primary/80 animate-pulse">{t('reading.loading')}</p>
-                         </div>
-                     ) : (
+
+            <main className="flex-1 w-full px-4 py-2 overflow-hidden flex flex-col min-h-0 relative z-10">
+                {renderCardDisplay()}
+
+                <div className="glass-panel rounded-2xl p-6 h-full overflow-y-auto hide-scrollbar flex flex-col gap-4 shadow-inner relative border-t border-white/10">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-10 gap-4">
+                            <div className="size-10 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm text-primary/80 animate-pulse">{t('reading.loading')}</p>
+                        </div>
+                    ) : (
                         <>
                             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5 justify-between">
                                 <div className="flex items-center gap-2">
@@ -1484,32 +1484,32 @@ const ReadingScreen = () => {
                             </div>
                             <div className="prose prose-invert prose-sm max-w-none text-gray-200 leading-relaxed font-light text-justify">
                                 {passedInterpretation || passedReading ? (
-                                     <div dangerouslySetInnerHTML={{ __html: interpretation.replace(/\n/g, '<br/>') }} />
+                                    <div dangerouslySetInnerHTML={{ __html: interpretation.replace(/\n/g, '<br/>') }} />
                                 ) : (
                                     <TypewriterText text={interpretation} onComplete={() => setIsTyping(false)} />
                                 )}
                             </div>
                             <div className="h-12"></div>
                         </>
-                     )}
-                 </div>
-             </main>
-             
-             <div className="w-full px-6 py-4 flex gap-4 shrink-0 glass-panel border-t border-white/10 z-20">
-                <button 
-                    onClick={handleSaveToggle} 
+                    )}
+                </div>
+            </main>
+
+            <div className="w-full px-6 py-4 flex gap-4 shrink-0 glass-panel border-t border-white/10 z-20">
+                <button
+                    onClick={handleSaveToggle}
                     disabled={loading || isTyping}
                     className={`flex-1 py-3 px-4 rounded-xl border transition-all flex items-center justify-center gap-2 ${isSaved ? 'bg-red-500/10 text-red-400 border-red-500/30' : 'bg-white/5 hover:bg-white/10 text-white/90 border-white/10'} disabled:opacity-50`}
                 >
-                    <span className="material-symbols-outlined" style={{fontSize: "20px"}}>{isSaved ? 'delete' : 'bookmark'}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>{isSaved ? 'delete' : 'bookmark'}</span>
                     <span className="text-sm font-medium">{isSaved ? t('reading.saved') : t('reading.save')}</span>
                 </button>
-                <button 
+                <button
                     onClick={handleShare}
                     disabled={loading || isTyping}
                     className="flex-1 py-3 px-4 rounded-xl bg-primary text-background-dark hover:bg-[#ffcf3d] transition-all flex items-center justify-center gap-2 font-bold shadow-[0_0_20px_rgba(244,192,37,0.3)] disabled:opacity-50"
                 >
-                    <span className="material-symbols-outlined" style={{fontSize: "20px"}}>share</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>share</span>
                     <span className="text-sm">{t('reading.share')}</span>
                 </button>
             </div>
@@ -1520,7 +1520,7 @@ const ReadingScreen = () => {
 const JournalScreen = () => {
     const { t } = useLanguage();
     const [readings, setReadings] = useState<Reading[]>([]);
-    const [showConfirm, setShowConfirm] = useState<{message: string, action: () => void} | null>(null);
+    const [showConfirm, setShowConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     useEffect(() => {
         setReadings(getReadings());
@@ -1533,18 +1533,18 @@ const JournalScreen = () => {
 
     const handleOpenReading = (reading: Reading) => {
         triggerHaptic();
-        navigate('/reading', { 
-            state: { 
-                spreadId: reading.spreadType, 
-                question: reading.question, 
+        navigate('/reading', {
+            state: {
+                spreadId: reading.spreadType,
+                question: reading.question,
                 cards: reading.cards,
-                id: reading.id, 
+                id: reading.id,
                 interpretation: reading.interpretation,
-                reading: reading 
-            } 
+                reading: reading
+            }
         });
     };
-    
+
     const handleDeleteItem = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         triggerHaptic();
@@ -1563,15 +1563,15 @@ const JournalScreen = () => {
             {showConfirm && <ConfirmModal message={showConfirm.message} onConfirm={showConfirm.action} onCancel={() => setShowConfirm(null)} />}
             <BackHeader title={t('journal.title')} />
             <div className="p-4 flex flex-col gap-4">
-                 {readings.length === 0 ? (
-                     <div className="flex flex-col items-center justify-center py-20 opacity-50">
-                         <span className="material-symbols-outlined text-6xl mb-4">auto_stories</span>
-                         <p>{t('journal.empty')}</p>
-                     </div>
-                 ) : (
+                {readings.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                        <span className="material-symbols-outlined text-6xl mb-4">auto_stories</span>
+                        <p>{t('journal.empty')}</p>
+                    </div>
+                ) : (
                     readings.map((reading) => (
                         <div key={reading.id} onClick={() => handleOpenReading(reading)} className="glass-panel p-4 rounded-xl flex gap-4 cursor-pointer hover:bg-white/5 transition-colors group relative">
-                            <div className="w-16 h-24 bg-cover bg-center rounded border border-white/10 shrink-0" style={{backgroundImage: `url(${reading.cards[0].image})`}}></div>
+                            <div className="w-16 h-24 bg-cover bg-center rounded border border-white/10 shrink-0" style={{ backgroundImage: `url(${reading.cards[0].image})` }}></div>
                             <div className="flex-1 min-w-0 pr-12">
                                 <div className="flex justify-between items-baseline mb-1">
                                     <h3 className="text-white font-bold truncate pr-2">{reading.spreadName}</h3>
@@ -1583,7 +1583,7 @@ const JournalScreen = () => {
                             <button onClick={(e) => handleDeleteItem(e, reading.id)} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full text-white/20 hover:text-red-400 hover:bg-white/10 transition-colors z-20"><span className="material-symbols-outlined text-[24px]">delete</span></button>
                         </div>
                     ))
-                 )}
+                )}
             </div>
             <BottomNav active="journal" />
         </div>
@@ -1617,7 +1617,7 @@ const LoginScreen = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
     const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
-    const [identifier, setIdentifier] = useState(''); 
+    const [identifier, setIdentifier] = useState('');
     const [code, setCode] = useState('');
     const [timer, setTimer] = useState(0);
     const [agreed, setAgreed] = useState(false);
@@ -1636,7 +1636,7 @@ const LoginScreen = () => {
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden font-display">
             {showTerms && <TermsModal onClose={() => setShowTerms(false)} />}
             <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[#3a206e] via-[#1a0b2e] to-black"></div>
-            <button onClick={() => navigate(-1)} className="absolute top-12 left-6 z-50 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all border border-white/5"><span className="material-symbols-outlined" style={{fontSize: "20px"}}>arrow_back</span></button>
+            <button onClick={() => navigate(-1)} className="absolute top-12 left-6 z-50 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all border border-white/5"><span className="material-symbols-outlined" style={{ fontSize: "20px" }}>arrow_back</span></button>
             <div className="relative z-10 flex flex-col justify-center h-full px-8 pb-20">
                 <div className="mb-8"><h1 className="text-4xl font-bold text-white mb-2">{t('login.title')}</h1><p className="text-white/50 text-sm">{t('login.subtitle')}</p></div>
                 <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 mb-6 relative"><div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg transition-all duration-300 shadow-lg ${loginMethod === 'phone' ? 'left-1' : 'left-[calc(50%+3px)]'}`}></div><button onClick={() => { setLoginMethod('phone'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'phone' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_phone')}</button><button onClick={() => { setLoginMethod('email'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'email' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_email')}</button></div>
@@ -1663,8 +1663,8 @@ const ProfileScreen = () => {
     }, []);
 
     const toggleSetting = (key: string) => { const newSettings = { ...settings, [key]: !settings[key] }; setSettings(newSettings); saveSettings(newSettings); triggerHaptic(); };
-    const handleLogout = () => { if(window.confirm(t('profile.logout_confirm'))) { clearAuth(); showToast(t('toast.logout'), 'logout'); } };
-    const handleDeleteAccount = () => { if(window.confirm(t('profile.delete_confirm'))) { clearAuth(); localStorage.clear(); window.location.reload(); } };
+    const handleLogout = () => { if (window.confirm(t('profile.logout_confirm'))) { clearAuth(); showToast(t('toast.logout'), 'logout'); } };
+    const handleDeleteAccount = () => { if (window.confirm(t('profile.delete_confirm'))) { clearAuth(); localStorage.clear(); window.location.reload(); } };
     const getMaskedIdentifier = () => { if (!auth) return ''; if (auth.type === 'email') { const [name, domain] = auth.identifier.split('@'); return `${name.substring(0, 1)}***@${domain}`; } return auth.identifier.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'); };
 
     return (
@@ -1675,7 +1675,7 @@ const ProfileScreen = () => {
             <div className="flex flex-col items-center pt-8 px-6">
                 <div className="relative mb-6"><div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div><div className="relative size-24 rounded-full bg-[#1a0b2e] border-2 border-primary/30 flex items-center justify-center overflow-hidden shadow-2xl">{auth ? <span className="text-3xl font-bold text-white bg-primary/20 size-full flex items-center justify-center">{auth.identifier.substring(0, 1).toUpperCase()}</span> : <span className="material-symbols-outlined text-4xl text-white/20">person</span>}</div></div>
                 {auth ? (
-                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0,8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('store.current')}</span><span className="text-2xl font-bold text-primary">{balance}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('profile.recharge')}</button></div></div>
+                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0, 8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('store.current')}</span><span className="text-2xl font-bold text-primary">{balance}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('profile.recharge')}</button></div></div>
                 ) : (
                     <div className="text-center w-full mb-8"><h2 className="text-xl font-bold text-white mb-2">Guest</h2><button onClick={() => navigate('/login')} className="mt-4 px-8 py-3 bg-white text-[#1a0b2e] font-bold rounded-full shadow-lg hover:scale-105 transition-transform">{t('profile.login')}</button></div>
                 )}
@@ -1697,142 +1697,142 @@ const ProfileScreen = () => {
 };
 
 const StoreScreen = () => {
-     const navigate = useNavigate();
-     const { t, lang } = useLanguage();
-     const [balance, setBalance] = useState(getUserBalance());
-     const [totalRecharge, setTotalRecharge] = useState(getUserTotalRecharge());
-     const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
+    const navigate = useNavigate();
+    const { t, lang } = useLanguage();
+    const [balance, setBalance] = useState(getUserBalance());
+    const [totalRecharge, setTotalRecharge] = useState(getUserTotalRecharge());
+    const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
 
-     useEffect(() => {
+    useEffect(() => {
         const handleUpdate = () => {
             setBalance(getUserBalance());
             setTotalRecharge(getUserTotalRecharge());
         };
         window.addEventListener('balance_updated', handleUpdate);
         return () => window.removeEventListener('balance_updated', handleUpdate);
-     }, []);
+    }, []);
 
-     const handlePurchase = (item: any) => {
-         const currentBal = getUserBalance();
-         setUserBalance(currentBal + item.coins + item.bonus);
-         
-         // Behavioral Economics: Trigger Grand Unlock if crossing threshold
-         const currentTotal = getUserTotalRecharge();
-         const rechargeValue = item.coins + item.bonus; 
-         
-         const newTotal = currentTotal + rechargeValue;
-         
-         if (currentTotal < UNLOCK_THRESHOLD && newTotal >= UNLOCK_THRESHOLD) {
-             setShowUnlockAnimation(true);
-         }
+    const handlePurchase = (item: any) => {
+        const currentBal = getUserBalance();
+        setUserBalance(currentBal + item.coins + item.bonus);
 
-         addToTotalRecharge(rechargeValue);
-         
-         showToast(t('store.success'), 'check_circle');
-         triggerHaptic();
-     };
+        // Behavioral Economics: Trigger Grand Unlock if crossing threshold
+        const currentTotal = getUserTotalRecharge();
+        const rechargeValue = item.coins + item.bonus;
 
-     const isUnlocked = totalRecharge >= UNLOCK_THRESHOLD;
-     const isEndowed = totalRecharge >= ENDOWED_PROGRESS && totalRecharge < UNLOCK_THRESHOLD && !localStorage.getItem('endowed_consumed');
-     
-     const unlockTarget = UNLOCK_THRESHOLD;
-     const currentProgressDisplay = totalRecharge.toFixed(0);
+        const newTotal = currentTotal + rechargeValue;
 
-     return (
+        if (currentTotal < UNLOCK_THRESHOLD && newTotal >= UNLOCK_THRESHOLD) {
+            setShowUnlockAnimation(true);
+        }
+
+        addToTotalRecharge(rechargeValue);
+
+        showToast(t('store.success'), 'check_circle');
+        triggerHaptic();
+    };
+
+    const isUnlocked = totalRecharge >= UNLOCK_THRESHOLD;
+    const isEndowed = totalRecharge >= ENDOWED_PROGRESS && totalRecharge < UNLOCK_THRESHOLD && !localStorage.getItem('endowed_consumed');
+
+    const unlockTarget = UNLOCK_THRESHOLD;
+    const currentProgressDisplay = totalRecharge.toFixed(0);
+
+    return (
         <div className="bg-background-dark min-h-screen pb-24 relative overflow-hidden">
             {showUnlockAnimation && <GrandUnlockOverlay onClose={() => setShowUnlockAnimation(false)} />}
 
             <div className="pt-12 px-6 pb-4">
-                 <h1 className="text-2xl font-bold text-white mb-6">{t('store.title')}</h1>
-                 
-                 {/* Balance Card */}
-                 <div className="w-full bg-gradient-to-r from-[#f4c025] to-[#b4860b] rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
-                      <div className="absolute right-[-20px] top-[-20px] opacity-20">
-                          <span className="material-symbols-outlined text-[120px]">monetization_on</span>
-                      </div>
-                      <p className="text-[#1a0b2e]/70 font-bold text-sm mb-1">{t('store.current')}</p>
-                      <h2 className="text-[#1a0b2e] text-4xl font-bold">{balance}</h2>
-                 </div>
+                <h1 className="text-2xl font-bold text-white mb-6">{t('store.title')}</h1>
 
-                 {/* BEHAVIORAL: Goal Gradient Progress Card */}
-                 <div className={`w-full rounded-2xl p-6 mb-8 relative overflow-hidden border transition-all duration-500 ${isUnlocked ? 'bg-gradient-to-br from-[#2e1065] to-[#0f0518] border-primary/50 shadow-[0_0_20px_rgba(244,192,37,0.2)]' : 'glass-panel border-white/10'}`}>
-                      <div className="flex justify-between items-start mb-4 relative z-10">
-                          <div>
-                              <h3 className={`font-bold text-lg ${isUnlocked ? 'text-primary' : 'text-white'}`}>{t('store.unlock_title')}</h3>
-                              <p className="text-xs text-white/50">{t('store.unlock_desc')}</p>
-                          </div>
-                          <div className={`size-10 rounded-full flex items-center justify-center transition-colors duration-500 ${isUnlocked ? 'bg-primary text-[#1a0b2e]' : 'bg-white/10 text-white/30'}`}>
-                              <span className="material-symbols-outlined">{isUnlocked ? 'lock_open' : 'lock'}</span>
-                          </div>
-                      </div>
-                      
-                      {isUnlocked ? (
-                          <div className="relative z-10 animate-fade-in">
-                              <p className="text-primary font-bold text-sm flex items-center gap-2">
-                                  <span className="material-symbols-outlined text-sm">verified</span>
-                                  {t('store.unlocked')}
-                              </p>
-                          </div>
-                      ) : (
-                          <div className="relative z-10">
-                              <div className="flex justify-between text-xs text-white/70 mb-2">
-                                  <span>{t('store.locked_status').replace('{current}', `${currentProgressDisplay}`).replace('{target}', `${unlockTarget}`)}</span>
-                              </div>
-                              
-                              {/* The Nebula Progress Bar */}
-                              <NebulaProgress current={totalRecharge} target={UNLOCK_THRESHOLD} isEndowed={true} />
-                              
-                              {/* Endowed Progress Feedback */}
-                              {isEndowed && (
-                                  <p className="text-[10px] text-primary/80 mt-2 flex items-center gap-1 animate-pulse">
-                                      <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
-                                      {t('store.endowed')}
-                                  </p>
-                              )}
-                          </div>
-                      )}
-                      
-                      {/* Decorative Background */}
-                      <div className="absolute -bottom-4 -right-4 opacity-10 rotate-12">
-                          <span className="material-symbols-outlined text-8xl">style</span>
-                      </div>
-                 </div>
+                {/* Balance Card */}
+                <div className="w-full bg-gradient-to-r from-[#f4c025] to-[#b4860b] rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
+                    <div className="absolute right-[-20px] top-[-20px] opacity-20">
+                        <span className="material-symbols-outlined text-[120px]">monetization_on</span>
+                    </div>
+                    <p className="text-[#1a0b2e]/70 font-bold text-sm mb-1">{t('store.current')}</p>
+                    <h2 className="text-[#1a0b2e] text-4xl font-bold">{balance}</h2>
+                </div>
 
-                 <div className="grid grid-cols-2 gap-4">
-                     {STORE_ITEMS.map((item) => (
-                         <button 
+                {/* BEHAVIORAL: Goal Gradient Progress Card */}
+                <div className={`w-full rounded-2xl p-6 mb-8 relative overflow-hidden border transition-all duration-500 ${isUnlocked ? 'bg-gradient-to-br from-[#2e1065] to-[#0f0518] border-primary/50 shadow-[0_0_20px_rgba(244,192,37,0.2)]' : 'glass-panel border-white/10'}`}>
+                    <div className="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <h3 className={`font-bold text-lg ${isUnlocked ? 'text-primary' : 'text-white'}`}>{t('store.unlock_title')}</h3>
+                            <p className="text-xs text-white/50">{t('store.unlock_desc')}</p>
+                        </div>
+                        <div className={`size-10 rounded-full flex items-center justify-center transition-colors duration-500 ${isUnlocked ? 'bg-primary text-[#1a0b2e]' : 'bg-white/10 text-white/30'}`}>
+                            <span className="material-symbols-outlined">{isUnlocked ? 'lock_open' : 'lock'}</span>
+                        </div>
+                    </div>
+
+                    {isUnlocked ? (
+                        <div className="relative z-10 animate-fade-in">
+                            <p className="text-primary font-bold text-sm flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">verified</span>
+                                {t('store.unlocked')}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="relative z-10">
+                            <div className="flex justify-between text-xs text-white/70 mb-2">
+                                <span>{t('store.locked_status').replace('{current}', `${currentProgressDisplay}`).replace('{target}', `${unlockTarget}`)}</span>
+                            </div>
+
+                            {/* The Nebula Progress Bar */}
+                            <NebulaProgress current={totalRecharge} target={UNLOCK_THRESHOLD} isEndowed={true} />
+
+                            {/* Endowed Progress Feedback */}
+                            {isEndowed && (
+                                <p className="text-[10px] text-primary/80 mt-2 flex items-center gap-1 animate-pulse">
+                                    <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
+                                    {t('store.endowed')}
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Decorative Background */}
+                    <div className="absolute -bottom-4 -right-4 opacity-10 rotate-12">
+                        <span className="material-symbols-outlined text-8xl">style</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    {STORE_ITEMS.map((item) => (
+                        <button
                             key={item.id}
                             onClick={() => handlePurchase(item)}
                             className="glass-panel p-4 rounded-xl flex flex-col items-center relative group overflow-hidden border border-white/10 hover:border-primary/50 transition-all"
-                         >
+                        >
                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            
-                            <span 
-                                className="material-symbols-outlined text-4xl text-primary mb-2 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)] group-hover:scale-110 transition-transform duration-300" 
-                                style={{fontVariationSettings: "'FILL' 1"}}
+
+                            <span
+                                className="material-symbols-outlined text-4xl text-primary mb-2 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)] group-hover:scale-110 transition-transform duration-300"
+                                style={{ fontVariationSettings: "'FILL' 1" }}
                             >
                                 monetization_on
                             </span>
 
                             <div className="text-white font-bold text-lg">{item.coins} <span className="text-xs font-normal">{t('store.coins')}</span></div>
                             {item.bonus > 0 && <div className="text-green-400 text-xs font-bold mb-2">+{item.bonus} {t('store.gift')}</div>}
-                            
+
                             {/* Price Display */}
                             <div className="mt-auto px-4 py-1.5 bg-white/10 rounded-full text-white font-bold text-sm group-hover:bg-primary group-hover:text-background-dark transition-colors">
                                 {lang === 'zh' ? `¥${item.priceCn}` : `$${item.price}`}
                             </div>
-                         </button>
-                     ))}
-                 </div>
+                        </button>
+                    ))}
+                </div>
             </div>
             <BottomNav active="store" />
         </div>
-     );
+    );
 };
 
 const App = () => {
     const [lang, setLang] = useState<Language>('zh');
-  
+
     const t = (key: string, params?: Record<string, any>) => {
         let text = translations[lang][key] || key;
         if (params) {
@@ -1842,29 +1842,29 @@ const App = () => {
         }
         return text;
     };
-  
+
     return (
-      <LanguageContext.Provider value={{ lang, setLang, t }}>
-        <Router>
-          <ScrollToTop />
-          <BackgroundMusic />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/guide" element={<QuestionGuide />} />
-            <Route path="/payment" element={<PaymentScreen />} />
-            <Route path="/shuffle" element={<ShuffleScreen />} />
-            <Route path="/draw" element={<DrawScreen />} />
-            <Route path="/reading" element={<ReadingScreen />} />
-            <Route path="/journal" element={<JournalScreen />} />
-            <Route path="/store" element={<StoreScreen />} />
-            <Route path="/profile" element={<ProfileScreen />} />
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-      </LanguageContext.Provider>
+        <LanguageContext.Provider value={{ lang, setLang, t }}>
+            <Router>
+                <ScrollToTop />
+                <BackgroundMusic />
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/guide" element={<QuestionGuide />} />
+                    <Route path="/payment" element={<PaymentScreen />} />
+                    <Route path="/shuffle" element={<ShuffleScreen />} />
+                    <Route path="/draw" element={<DrawScreen />} />
+                    <Route path="/reading" element={<ReadingScreen />} />
+                    <Route path="/journal" element={<JournalScreen />} />
+                    <Route path="/store" element={<StoreScreen />} />
+                    <Route path="/profile" element={<ProfileScreen />} />
+                    <Route path="/login" element={<LoginScreen />} />
+                    <Route path="/settings" element={<SettingsScreen />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </Router>
+        </LanguageContext.Provider>
     );
-  };
-  
+};
+
 export default App;

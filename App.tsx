@@ -1327,7 +1327,7 @@ const ReadingScreen = () => {
             const fetchInterpretation = async () => {
                 const sName = lang === 'zh' ? spread.name : spread.nameEn;
                 const sPos = lang === 'zh' ? spread.positions : spread.positionsEn;
-                const text = await getTarotInterpretation(sName, question, cards, sPos, lang);
+                const text = await getTarotInterpretation(spreadId, sName, question, cards, sPos, lang);
                 setInterpretation(text);
                 setLoading(false);
             };
@@ -2072,10 +2072,7 @@ const StoreScreen = () => {
             {showUnlockAnimation && <GrandUnlockOverlay onClose={() => setShowUnlockAnimation(false)} />}
 
             <div className="pt-12 px-6 pb-4">
-                <h1 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                    {t('store.title')}
-                    <span className="text-xs bg-red-500/20 text-red-400 px-2 py-1 rounded border border-red-500/30">Dev V2.0</span>
-                </h1>
+                <h1 className="text-2xl font-bold text-white mb-6">{t('store.title')}</h1>
 
                 {/* Balance Card */}
                 <div className="w-full bg-gradient-to-r from-[#f4c025] to-[#b4860b] rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">

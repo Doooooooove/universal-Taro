@@ -7,16 +7,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// 生成易支付签名
-function generateSign(params: Record<string, string>, key: string): string {
+// 虎皮椒签名生成
+function generateHash(params: Record<string, string>, appSecret: string): string {
   const sortedKeys = Object.keys(params)
-    .filter((k) => k !== "sign" && k !== "sign_type" && params[k] !== "")
+    .filter((k) => k !== "hash" && params[k] !== "" && params[k] !== undefined)
     .sort();
-  
-  // 标准彩虹易支付签名：key1=value1&key2=value2...&key=商户密钥
+
   const stringA = sortedKeys.map((k) => `${k}=${params[k]}`).join("&");
-  const signStr = stringA + "&key=" + key;
-  return md5(signStr);
+  const hash = md5(stringA + appSecret);
+  console.log("=== HASH DEBUG ===");
+  console.log("sortedKeys:", sortedKeys);
+  console.log("stringA:", stringA);
+  console.log("hash:", hash);
+  return hash;
 }
 
 // 生成订单号
@@ -70,15 +73,15 @@ serve(async (req) => {
       );
     }
 
-    // 获取易支付配置
-    const EPAY_PID = Deno.env.get("EPAY_PID");
-    const EPAY_KEY = Deno.env.get("EPAY_KEY");
-    const EPAY_API_URL = Deno.env.get("EPAY_API_URL") || "https://epay.jylc.cc/submit.php";
+    // 获取虎皮椒支付配置
+    const HUPIJIAO_APPID = Deno.env.get("HUPIJIAO_APPID");
+    const HUPIJIAO_APPSECRET = Deno.env.get("HUPIJIAO_APPSECRET");
+    const HUPIJIAO_API_URL = Deno.env.get("HUPIJIAO_API_URL") || "https://api.xunhupay.com/payment/do.html";
     const NOTIFY_URL = `${supabaseUrl}/functions/v1/epay-notify`;
     const RETURN_URL = Deno.env.get("EPAY_RETURN_URL") || "http://tarott.zeabur.app/#/payment/result";
 
-    if (!EPAY_PID || !EPAY_KEY) {
-      console.error("EPAY config not set");
+    if (!HUPIJIAO_APPID || !HUPIJIAO_APPSECRET) {
+      console.error("Hupijiao config not set");
       return new Response(
         JSON.stringify({ error: "Payment not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -110,29 +113,56 @@ serve(async (req) => {
       );
     }
 
-    // 构建易支付请求参数
-    const epayParams: Record<string, string> = {
-      pid: EPAY_PID,
-      type: payType || "alipay",
-      out_trade_no: outTradeNo,
+    // 构建虎皮椒支付请求参数
+    const hupiParams: Record<string, string> = {
+      version: "1.1",
+      appid: HUPIJIAO_APPID,
+      trade_order_id: outTradeNo,
+      total_fee: amount.toFixed(2),
+      title: `Tarot Coins Recharge ${coins}`,
+      time: Math.floor(Date.now() / 1000).toString(),
       notify_url: NOTIFY_URL,
       return_url: RETURN_URL,
-      name: `塔罗金币充值 ${coins}币`,
-      money: amount.toFixed(2),
+      nonce_str: Math.random().toString(36).substring(2, 15),
     };
 
+    // 微信支付需要传 type=WAP
+    if (payType === "wxpay" || payType === "wechat") {
+      hupiParams.type = "WAP";
+    }
+
     // 生成签名
-    const sign = await generateSign(epayParams, EPAY_KEY);
-    epayParams.sign = sign;
-    epayParams.sign_type = "MD5";
+    const hash = generateHash(hupiParams, HUPIJIAO_APPSECRET.trim());
+    hupiParams.hash = hash;
 
-    // 构建跳转 URL
-    const payUrl = `${EPAY_API_URL}?${new URLSearchParams(epayParams).toString()}`;
+    console.log("Sending request to Hupijiao:", HUPIJIAO_API_URL);
 
+    // POST 请求虎皮椒 API
+    const formBody = new URLSearchParams(hupiParams).toString();
+    const response = await fetch(HUPIJIAO_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: formBody,
+    });
+
+    const result = await response.json();
+    console.log("Hupijiao response:", result);
+
+    if (result.errcode !== 0) {
+      console.error("Hupijiao error:", result.errmsg);
+      return new Response(
+        JSON.stringify({ error: "Payment gateway error", detail: result.errmsg }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 返回支付链接
     return new Response(
       JSON.stringify({ 
         success: true, 
-        payUrl,
+        payUrl: result.url,
         outTradeNo,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

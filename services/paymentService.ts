@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { getCurrentUser } from './authService';
 
 /**
- * 支付服务 - 易支付集成
+ * 支付服务 - 虎皮椒支付集成 (xunhupay.com)
  */
 
 export interface CreateOrderResult {
