@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { HashRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
 import BackHeader from './components/BackHeader';
-import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, STORE_ITEMS, UNLOCK_THRESHOLD, ENDOWED_PROGRESS } from './constants';
+import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, UNLOCK_THRESHOLD, ENDOWED_PROGRESS, SUBSCRIPTION_PLANS, PlanType } from './constants';
 import { getDeepSeekInterpretation as getTarotInterpretation } from './services/deepseekService';
 import { SpreadType, Card, Reading, SpreadConfig } from './types';
-import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-// Supabase 服务
-import * as authService from './services/authService';
-import * as userService from './services/userService';
-import * as readingsService from './services/readingsService';
-import * as paymentService from './services/paymentService';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // --- I18n Constants ---
 type Language = 'zh' | 'en';
@@ -30,7 +24,7 @@ const translations: Record<Language, Record<string, string>> = {
         'store.title': '星辰商店',
         'store.current': '当前金币',
         'store.coins': '金币',
-        'store.gift': '赠', // Simplified 'Gift' label
+        'store.gift': '送',
         'store.success': '充值成功',
         'store.return_reading': '继续之前的占卜',
         'store.unlock_title': '命运轨迹',
@@ -38,7 +32,15 @@ const translations: Record<Language, Record<string, string>> = {
         'store.unlocked': '全牌库已觉醒',
         'store.locked_status': '觉醒进度 {current}/{target}',
         'store.endowed': '✨ 初始星尘已注入',
-        'store.recommend': '👑 店长推荐',
+        'plan.title': '订阅计划',
+        'plan.current': '当前方案',
+        'plan.subscribe': '立即订阅',
+        'plan.current_badge': '当前',
+        'plan.recommended': '推荐',
+        'plan.free_label': '免费使用',
+        'plan.per_month': '/月',
+        'plan.manage': '管理订阅',
+        'plan.switched': '已切换方案',
         'funds.title': '能量不足',
         'funds.desc': '您的金币不足以开启本次占卜。\n请前往商店获取更多星辰能量。',
         'funds.later': '稍后再说',
@@ -87,8 +89,8 @@ const translations: Record<Language, Record<string, string>> = {
         'profile.settings': '系统设置',
         'profile.contact': '联系客服',
         'profile.logout': '退出登录',
-        'profile.delete': '注销账户',
-        'profile.logout_confirm': '确定要退出当前账户吗？',
+        'profile.delete': '注销账户 (Delete Account)',
+        'profile.logout_confirm': '确定要退出登录吗？',
         'profile.delete_confirm': '警告：此操作将永久删除您的账户数据且无法恢复。是否继续？',
         'login.title': '连接能量',
         'login.subtitle': '开启你的专属星辰旅程',
@@ -117,10 +119,7 @@ const translations: Record<Language, Record<string, string>> = {
         'nav.profile': '我的',
         'unlock.congrats': '宇宙校准完成',
         'unlock.message': '小阿卡纳已融入您的命运牌库',
-        'unlock.continue': '继续旅程',
-        'confirm.title': '操作确认',
-        'confirm.cancel': '取消',
-        'confirm.ok': '确定'
+        'unlock.continue': '继续旅程'
     },
     en: {
         'app.title': 'Hello, Seeker',
@@ -134,7 +133,7 @@ const translations: Record<Language, Record<string, string>> = {
         'store.title': 'Star Store',
         'store.current': 'Current Balance',
         'store.coins': 'Coins',
-        'store.gift': 'Gift',
+        'store.gift': 'Bonus',
         'store.success': 'Recharge Successful',
         'store.return_reading': 'Continue Reading',
         'store.unlock_title': 'Destiny Progression',
@@ -142,7 +141,15 @@ const translations: Record<Language, Record<string, string>> = {
         'store.unlocked': 'Full Deck Awakened',
         'store.locked_status': 'Awakening {current}/{target}',
         'store.endowed': '✨ Ancient Stardust Infused',
-        'store.recommend': '👑 Recommended',
+        'plan.title': 'Subscription',
+        'plan.current': 'Current Plan',
+        'plan.subscribe': 'Subscribe',
+        'plan.current_badge': 'Current',
+        'plan.recommended': 'Best Value',
+        'plan.free_label': 'Free',
+        'plan.per_month': '/mo',
+        'plan.manage': 'Manage Plan',
+        'plan.switched': 'Plan Updated',
         'funds.title': 'Low Energy',
         'funds.desc': 'Insufficient coins for this reading.\nPlease visit the store.',
         'funds.later': 'Not Now',
@@ -221,10 +228,7 @@ const translations: Record<Language, Record<string, string>> = {
         'nav.profile': 'Profile',
         'unlock.congrats': 'Universal Alignment Complete',
         'unlock.message': 'The Minor Arcana have joined your destiny.',
-        'unlock.continue': 'Continue Journey',
-        'confirm.title': 'Confirm Action',
-        'confirm.cancel': 'Cancel',
-        'confirm.ok': 'Confirm'
+        'unlock.continue': 'Continue Journey'
     }
 };
 
@@ -244,14 +248,17 @@ const LanguageContext = createContext<LanguageContextType>({
 const useLanguage = () => useContext(LanguageContext);
 
 // --- Constants ---
-const INITIAL_BALANCE = 30;
+const INITIAL_BALANCE = 30; // UPDATED: Set to 30 as requested
 const DAILY_LOGIN_BONUS = 10;
+const MUSIC_URL = "https://cdn.pixabay.com/audio/2022/10/25/audio_517409292a.mp3";
 
 // --- Haptic Feedback Helper ---
-let cachedHapticSetting = true; // 默认开启，从 Supabase 加载后更新
 const triggerHaptic = () => {
     try {
-        if (cachedHapticSetting && navigator.vibrate) {
+        const settings = JSON.parse(localStorage.getItem('user_settings') || '{}');
+        const isHapticEnabled = settings.haptic !== false;
+
+        if (isHapticEnabled && navigator.vibrate) {
             navigator.vibrate(10);
         }
     } catch (e) { }
@@ -265,61 +272,52 @@ const triggerStrongHaptic = () => {
     } catch (e) { }
 }
 
-// --- Auth Context (Supabase) ---
-interface AuthContextType {
-    user: SupabaseUser | null;
-    loading: boolean;
-    signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType>({
-    user: null,
-    loading: true,
-    signOut: async () => { },
-});
-
-const useAuth = () => useContext(AuthContext);
-
-// --- Data Context (Supabase as Single Source of Truth) ---
-interface DataContextType {
-    balance: number;
-    totalRecharge: number;
-    settings: { music: boolean; haptic: boolean; notification: boolean };
-    refreshBalance: () => Promise<void>;
-    refreshSettings: () => Promise<void>;
-    consumeCoins: (amount: number, description: string) => Promise<boolean>;
-    recharge: (coins: number, bonus: number) => Promise<boolean>;
-    updateSettings: (settings: Partial<{ music: boolean; haptic: boolean; notification: boolean }>) => Promise<void>;
-}
-
-const DataContext = createContext<DataContextType>({
-    balance: INITIAL_BALANCE,
-    totalRecharge: ENDOWED_PROGRESS,
-    settings: { music: true, haptic: true, notification: false },
-    refreshBalance: async () => { },
-    refreshSettings: async () => { },
-    consumeCoins: async () => false,
-    recharge: async () => false,
-    updateSettings: async () => { },
-});
-
-const useData = () => useContext(DataContext);
-
-// --- Toast Helper ---
-const showToast = (message: string, icon: string = 'info') => {
-    const feedback = document.createElement('div');
-    feedback.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a0b2e]/90 text-white px-6 py-4 rounded-xl z-[100] backdrop-blur-md flex flex-col items-center animate-[shimmer_0.3s_ease-out] border border-primary/20 shadow-2xl pointer-events-none';
-    feedback.innerHTML = `<span class="material-symbols-outlined text-primary text-3xl mb-2">${icon}</span><p class="text-sm font-medium tracking-wide text-center whitespace-nowrap">${message}</p>`;
-    document.body.appendChild(feedback);
-    setTimeout(() => feedback.remove(), 2000);
+// --- Global State Helper (Local Storage Wrapper) ---
+const getUserBalance = () => {
+    const saved = localStorage.getItem('user_balance');
+    return saved ? parseInt(saved) : INITIAL_BALANCE;
 };
 
-// --- 向后兼容层 (Shim) ---
-// 仅保留必要的本地状态读取函数
+const setUserBalance = (amount: number) => {
+    localStorage.setItem('user_balance', amount.toString());
+    window.dispatchEvent(new Event('balance_updated'));
+};
 
-// Auth shims
+const getUserTotalRecharge = () => {
+    const saved = localStorage.getItem('user_total_recharge');
+    if (!saved) {
+        localStorage.setItem('user_total_recharge', ENDOWED_PROGRESS.toString());
+        return ENDOWED_PROGRESS;
+    }
+    return parseFloat(saved);
+};
+
+const addToTotalRecharge = (amount: number) => {
+    const current = getUserTotalRecharge();
+    localStorage.setItem('user_total_recharge', (current + amount).toString());
+    window.dispatchEvent(new Event('balance_updated'));
+};
+
+const getReadings = (): Reading[] => {
+    const saved = localStorage.getItem('user_readings');
+    return saved ? JSON.parse(saved) : [];
+};
+
+const saveReading = (reading: Reading) => {
+    const readings = getReadings();
+    readings.unshift(reading);
+    localStorage.setItem('user_readings', JSON.stringify(readings));
+    window.dispatchEvent(new Event('readings_updated'));
+};
+
+const deleteReading = (id: string) => {
+    const readings = getReadings().filter(r => r.id !== id);
+    localStorage.setItem('user_readings', JSON.stringify(readings));
+    window.dispatchEvent(new Event('readings_updated'));
+};
+
 interface AuthData {
-    identifier: string;
+    identifier: string; // phone or email
     type: 'phone' | 'email';
     id: string;
     loginTime: string;
@@ -328,11 +326,24 @@ interface AuthData {
 const getAuth = (): AuthData | null => {
     const saved = localStorage.getItem('user_auth');
     if (!saved) return null;
-    try { return JSON.parse(saved); } catch { return null; }
+    try {
+        const parsed = JSON.parse(saved);
+        if (parsed.phone && !parsed.identifier) {
+            return { identifier: parsed.phone, type: 'phone', id: parsed.id, loginTime: parsed.loginTime };
+        }
+        return parsed;
+    } catch {
+        return null;
+    }
 };
 
 const setAuth = (identifier: string, type: 'phone' | 'email') => {
-    const authData: AuthData = { identifier, type, id: Date.now().toString(), loginTime: new Date().toISOString() };
+    const authData: AuthData = {
+        identifier,
+        type,
+        id: Date.now().toString(),
+        loginTime: new Date().toISOString()
+    };
     localStorage.setItem('user_auth', JSON.stringify(authData));
     window.dispatchEvent(new Event('auth_updated'));
 };
@@ -342,29 +353,34 @@ const clearAuth = () => {
     window.dispatchEvent(new Event('auth_updated'));
 };
 
-// 登录后同步余额到缓存
-const syncBalanceFromSupabase = async (): Promise<void> => {
-    const balance = await userService.getUserBalance();
-    if (balance) {
-        localStorage.setItem('balance_cache', balance.balance.toString());
-        localStorage.setItem('recharge_cache', balance.total_recharge.toString());
-        window.dispatchEvent(new Event('balance_updated'));
-    }
-};
-
-// 获取充值总额（用于解锁判断）
-const getUserTotalRecharge = (): number => {
-    const cached = localStorage.getItem('recharge_cache');
-    return cached ? parseFloat(cached) : ENDOWED_PROGRESS;
-};
-
-// Settings shim (同步读取用于初始化)
 const getSettings = () => {
     const saved = localStorage.getItem('user_settings');
     return saved ? JSON.parse(saved) : { music: true, haptic: true, notification: false };
 };
 
+const saveSettings = (settings: any) => {
+    localStorage.setItem('user_settings', JSON.stringify(settings));
+    window.dispatchEvent(new Event('settings_updated'));
+};
 
+const getUserPlan = (): PlanType => {
+    return (localStorage.getItem('user_plan') as PlanType) || 'free';
+};
+
+const setUserPlan = (plan: PlanType) => {
+    localStorage.setItem('user_plan', plan);
+    window.dispatchEvent(new Event('plan_updated'));
+};
+
+const showToast = (message: string, icon: string = 'info') => {
+    const feedback = document.createElement('div');
+    feedback.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a0b2e]/90 text-white px-6 py-4 rounded-xl z-[100] backdrop-blur-md flex flex-col items-center animate-[shimmer_0.3s_ease-out] border border-primary/20 shadow-2xl pointer-events-none';
+    feedback.innerHTML = `<span class="material-symbols-outlined text-primary text-3xl mb-2">${icon}</span><p class="text-sm font-medium tracking-wide text-center whitespace-nowrap">${message}</p>`;
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 2000);
+};
+
+// --- Components ---
 
 const ScrollToTop = () => {
     const { pathname } = useLocation();
@@ -372,6 +388,67 @@ const ScrollToTop = () => {
     return null;
 };
 
+const BackgroundMusic = () => {
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    useEffect(() => {
+        const audio = new Audio(MUSIC_URL);
+        audio.loop = true;
+        audio.volume = 0.3;
+        audioRef.current = audio;
+
+        const attemptPlay = () => {
+            audio.play().then(() => {
+                setIsPlaying(true);
+            }).catch(e => {
+                const startAudio = () => {
+                    const currentSettings = getSettings();
+                    if (currentSettings.music) {
+                        audio.play();
+                        setIsPlaying(true);
+                    }
+                    document.removeEventListener('click', startAudio);
+                    document.removeEventListener('touchstart', startAudio);
+                };
+                document.addEventListener('click', startAudio);
+                document.addEventListener('touchstart', startAudio);
+            });
+        };
+
+        const checkSettingsAndPlay = () => {
+            const settings = getSettings();
+            if (settings.music && !document.hidden) {
+                attemptPlay();
+            } else {
+                audio.pause();
+                setIsPlaying(false);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            const settings = getSettings();
+            if (document.hidden) {
+                audio.pause();
+            } else if (settings.music) {
+                audio.play().catch(() => { });
+            }
+        };
+
+        checkSettingsAndPlay();
+        window.addEventListener('settings_updated', checkSettingsAndPlay);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            audio.pause();
+            audio.src = '';
+            window.removeEventListener('settings_updated', checkSettingsAndPlay);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, []);
+
+    return null;
+};
 
 const NebulaProgress = ({ current, target, isEndowed }: { current: number, target: number, isEndowed: boolean }) => {
     const progress = Math.min((current / target) * 100, 100);
@@ -399,12 +476,9 @@ const GrandUnlockOverlay = ({ onClose }: { onClose: () => void }) => {
 
     useEffect(() => {
         triggerStrongHaptic();
-        // Use a reliable sound effect URL
-        const audio = new Audio("https://assets.mixkit.co/sfx/preview/mixkit-fairy-glitter-867.mp3");
+        const audio = new Audio("https://cdn.pixabay.com/audio/2022/03/09/audio_a7e2335f60.mp3");
         audio.volume = 0.5;
-        audio.play().catch((e) => {
-            console.warn("Unlock sound play failed:", e);
-        });
+        audio.play().catch(() => { });
     }, []);
 
     return (
@@ -429,32 +503,17 @@ const GrandUnlockOverlay = ({ onClose }: { onClose: () => void }) => {
     );
 };
 
-const DailyBonusModal = ({ onClaim }: { onClaim: () => void }) => {
+const DailyBonusModal = ({ onClose }: { onClose: () => void }) => {
     const { t } = useLanguage();
-    const [claiming, setClaiming] = useState(false);
-
-    const handleClaim = async () => {
-        if (claiming) return;
-        setClaiming(true);
-        const result = await userService.claimDailyBonus();
-        if (result.claimed) {
-            window.dispatchEvent(new Event('balance_updated'));
-            showToast(t('bonus.title'), 'check_circle');
-        } else if (result.alreadyClaimed) {
-            showToast('今日已领取', 'info');
-        }
-        onClaim();
-    };
-
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClaim}></div>
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative w-full max-w-sm bg-[#1a0b2e] border border-primary/30 rounded-2xl p-8 flex flex-col items-center text-center shadow-[0_0_50px_rgba(244,192,37,0.2)] animate-[float_4s_ease-in-out_infinite]">
                 <div className="absolute -top-12"><div className="relative size-24"><div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse"></div><div className="relative size-24 bg-gradient-to-br from-primary to-[#b4860b] rounded-full border-4 border-[#1a0b2e] flex items-center justify-center shadow-lg"><span className="material-symbols-outlined text-4xl text-[#1a0b2e]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span></div></div></div>
                 <h2 className="text-2xl font-bold text-white mt-8 mb-2">{t('bonus.title')}</h2>
                 <p className="text-[#bab29c] text-sm mb-6">{t('bonus.desc')}</p>
                 <div className="flex items-center gap-2 text-4xl font-bold text-primary mb-8 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)]"><span>+{DAILY_LOGIN_BONUS}</span><span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span></div>
-                <button onClick={handleClaim} disabled={claiming} className="w-full py-3.5 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg disabled:opacity-50">{claiming ? '领取中...' : t('bonus.btn')}</button>
+                <button onClick={onClose} className="w-full py-3.5 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg">{t('bonus.btn')}</button>
             </div>
         </div>
     );
@@ -475,23 +534,17 @@ const InsufficientFundsModal = ({ onClose, onGoStore }: { onClose: () => void, o
     );
 };
 
-const ConfirmModal = ({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) => {
-    const { t } = useLanguage();
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 animate-in fade-in duration-200">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onCancel}></div>
-            <div className="relative w-full max-w-xs bg-[#1a0b2e] border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center shadow-2xl">
-                <div className="size-12 rounded-full bg-white/10 flex items-center justify-center mb-4"><span className="material-symbols-outlined text-2xl text-white">priority_high</span></div>
-                <h3 className="text-lg font-bold text-white mb-2">{t('confirm.title')}</h3>
-                <p className="text-white/70 text-sm mb-6">{message}</p>
-                <div className="flex gap-3 w-full">
-                    <button onClick={onCancel} className="flex-1 py-2.5 bg-white/5 text-white/70 font-bold rounded-xl hover:bg-white/10 transition-all">{t('confirm.cancel')}</button>
-                    <button onClick={onConfirm} className="flex-1 py-2.5 bg-red-500/20 text-red-400 border border-red-500/30 font-bold rounded-xl hover:bg-red-500/30 transition-all">{t('confirm.ok')}</button>
-                </div>
-            </div>
+const ConfirmModal = ({ message, onConfirm, onCancel }: { message: string, onConfirm: () => void, onCancel: () => void }) => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 animate-in fade-in duration-200">
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onCancel}></div>
+        <div className="relative w-full max-w-xs bg-[#1a0b2e] border border-white/20 rounded-2xl p-6 flex flex-col items-center text-center shadow-2xl">
+            <div className="size-12 rounded-full bg-white/10 flex items-center justify-center mb-4"><span className="material-symbols-outlined text-2xl text-white">priority_high</span></div>
+            <h3 className="text-lg font-bold text-white mb-2">Confirm</h3>
+            <p className="text-white/70 text-sm mb-6">{message}</p>
+            <div className="flex gap-3 w-full"><button onClick={onCancel} className="flex-1 py-2.5 bg-white/5 text-white/70 font-bold rounded-xl hover:bg-white/10 transition-all">Cancel</button><button onClick={onConfirm} className="flex-1 py-2.5 bg-red-500/20 text-red-400 border border-red-500/30 font-bold rounded-xl hover:bg-red-500/30 transition-all">Confirm</button></div>
         </div>
-    );
-};
+    </div>
+);
 
 const ContactModal = ({ email, onClose }: { email: string, onClose: () => void }) => {
     const { t, lang } = useLanguage();
@@ -565,77 +618,46 @@ const TypewriterText = ({ text, onComplete }: { text: string, onComplete: () => 
     return (<div onClick={finish} className="cursor-pointer"><div dangerouslySetInnerHTML={{ __html: displayedText.replace(/\n/g, '<br/>') }} />{currentIndex < safeText.length && <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse align-middle"></span>}</div>);
 };
 
-// --- Password Login Modal ---
+// --- Starmail Login Modal (Fixed Interaction) ---
 const LoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose: () => void; onLogin: (email: string) => void }) => {
-    const [mode, setMode] = useState<'login' | 'register'>('login');
+    const [step, setStep] = useState<'email' | 'code'>('email');
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    // 切换模式时清空确认密码
-    const handleModeSwitch = () => {
-        setMode(mode === 'login' ? 'register' : 'login');
-        setConfirmPassword('');
-        setError(null);
-    };
-
+    // Stop propagation to prevent backdrop close
     const handleModalClick = (e: React.MouseEvent) => {
         e.stopPropagation();
     };
 
-    const handleSubmit = async (e: React.MouseEvent) => {
+    const handleSendCode = (e: React.MouseEvent) => {
         e.preventDefault();
-        if (!email || !password) { setError('请填写邮箱和密码'); return; }
-        if (password.length < 6) { setError('密码至少6位'); return; }
-
-        // 注册模式需要确认密码
-        if (mode === 'register') {
-            if (!confirmPassword) { setError('请确认密码'); return; }
-            if (password !== confirmPassword) { setError('两次输入的密码不一致'); return; }
-        }
+        if (email.length < 3) return; // Simple validation
 
         setLoading(true);
-        setError(null);
-
-        try {
-            if (mode === 'register') {
-                const { user, error } = await authService.signUpWithPassword(email, password);
-                if (error) {
-                    setError(error.message);
-                } else if (user) {
-                    setAuth(email, 'email');
-                    await syncBalanceFromSupabase();
-                    showToast('注册成功', 'check_circle');
-                    onLogin(email);
-                    onClose();
-                }
-            } else {
-                const { user, error } = await authService.signInWithPassword(email, password);
-                if (error) {
-                    setError(error.message === 'Invalid login credentials' ? '邮箱或密码错误' : error.message);
-                } else if (user) {
-                    setAuth(email, 'email');
-                    await syncBalanceFromSupabase();
-                    showToast('登录成功', 'check_circle');
-                    onLogin(email);
-                    onClose();
-                }
-            }
-        } catch (err) {
-            setError('操作失败');
-        } finally {
+        setTimeout(() => {
             setLoading(false);
-        }
+            setStep('code');
+        }, 1000);
+    };
+
+    const handleVerify = (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (code.length === 0) return;
+
+        setLoading(true);
+        setTimeout(() => {
+            setLoading(false);
+            onLogin(email);
+            onClose();
+        }, 1000);
     };
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 font-sans">
+                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -644,13 +666,15 @@ const LoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose: ()
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
                     />
 
+                    {/* Modal Content */}
                     <motion.div
                         initial={{ scale: 0.9, opacity: 0, y: 20 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        onClick={handleModalClick}
+                        onClick={handleModalClick} // Stop propagation
                         className="relative w-full max-w-md bg-[#1a0b2e] border border-white/10 rounded-2xl p-8 overflow-hidden shadow-[0_0_50px_rgba(124,58,237,0.3)] z-50"
                     >
+                        {/* Visuals */}
                         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-transparent pointer-events-none"></div>
                         <div className="absolute -top-20 -left-20 w-40 h-40 bg-purple-600/30 rounded-full blur-[60px]"></div>
 
@@ -660,92 +684,82 @@ const LoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose: ()
                             </div>
 
                             <h2 className="text-2xl font-bold text-white mb-2 tracking-wide font-display">
-                                {mode === 'login' ? '欢迎回来' : '创建账号'}
+                                {step === 'email' ? 'Link Your Soul' : 'Cosmic Verification'}
                             </h2>
 
                             <p className="text-white/40 text-xs mb-8 tracking-wider uppercase">
-                                {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+                                Universal Access Protocol
                             </p>
 
-                            <div className="w-full space-y-4">
-                                {/* 邮箱输入 */}
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
-                                        <Mail size={18} />
+                            {step === 'email' ? (
+                                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                                    <div className="text-left">
+                                        <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
+                                            Starmail Address
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
+                                                <Mail size={18} />
+                                            </div>
+                                            <input
+                                                type="email"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
+                                                placeholder="cosmos@example.com"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <p className="text-white/40 text-[10px] mt-3 leading-relaxed text-center font-light px-2">
+                                            请输入你的星际投递地址 (Email)，接收宇宙的指引。
+                                        </p>
                                     </div>
-                                    <input
-                                        type="email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="邮箱"
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
-                                        autoFocus
-                                    />
-                                </div>
 
-                                {/* 密码输入 */}
-                                <div className="relative group">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
-                                        <Lock size={18} />
-                                    </div>
-                                    <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="密码 (至少6位)"
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-12 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
-                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                                        onClick={handleSendCode}
+                                        disabled={email.length < 3 || loading}
+                                        className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        {loading ? <Loader2 className="animate-spin" /> : <>Send Starlight Code <ArrowRight size={18} /></>}
                                     </button>
                                 </div>
-
-                                {/* 确认密码（仅注册模式） */}
-                                {mode === 'register' && (
-                                    <div className="relative group">
-                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
-                                            <Lock size={18} />
+                            ) : (
+                                <div className="w-full space-y-6 animate-in slide-in-from-right-8 fade-in duration-300">
+                                    <div className="text-left">
+                                        <label className="text-[#f4c025] text-xs font-bold tracking-widest uppercase mb-2 block pl-1">
+                                            Verification Code
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#f4c025] transition-colors">
+                                                <Lock size={18} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={code}
+                                                onChange={(e) => setCode(e.target.value)}
+                                                placeholder="000000"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans tracking-[0.5em] text-center font-bold text-lg"
+                                                autoFocus
+                                                maxLength={6}
+                                            />
                                         </div>
-                                        <input
-                                            type={showConfirmPassword ? 'text' : 'password'}
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="确认密码"
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl py-4 pl-12 pr-12 text-white placeholder:text-white/20 focus:outline-none focus:border-[#f4c025]/50 focus:bg-white/10 transition-all font-sans"
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-                                        >
-                                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                        </button>
                                     </div>
-                                )}
 
-                                {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                                    <button
+                                        type="button"
+                                        onClick={handleVerify}
+                                        disabled={loading}
+                                        className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        {loading ? <Loader2 className="animate-spin" /> : <>Connect to Source <Star size={18} fill="currentColor" /></>}
+                                    </button>
 
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={loading}
-                                    className="w-full py-4 bg-gradient-to-r from-[#f4c025] to-[#ca8a04] text-[#1a0b2e] font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : (mode === 'login' ? '登录' : '注册')}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={handleModeSwitch}
-                                    className="text-xs text-white/40 hover:text-white transition-colors w-full text-center py-2"
-                                >
-                                    {mode === 'login' ? '没有账号？点击注册' : '已有账号？点击登录'}
-                                </button>
-                            </div>
+                                    <button type="button" onClick={() => setStep('email')} className="text-xs text-white/30 hover:text-white transition-colors w-full text-center py-2">
+                                        Use different starmail
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </div>
@@ -759,34 +773,38 @@ const LoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean; onClose: ()
 const HomePage = () => {
     const navigate = useNavigate();
     const { t, lang, setLang } = useLanguage();
-    // Stale-while-revalidate: 先用缓存值，后台更新
-    const cached = localStorage.getItem('balance_cache');
-    const [balance, setBalance] = useState<number | null>(cached ? parseInt(cached) : null);
+    const [balance, setBalance] = useState(getUserBalance());
     const [showDailyBonus, setShowDailyBonus] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     useEffect(() => {
-        const handleBalanceChange = async () => {
-            const balanceData = await userService.getUserBalance();
-            if (balanceData) {
-                setBalance(balanceData.balance);
-                localStorage.setItem('balance_cache', balanceData.balance.toString());
+        const handleStorageChange = () => setBalance(getUserBalance());
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('balance_updated', handleStorageChange);
+
+        const checkDailyLogin = () => {
+            const lastLoginDate = localStorage.getItem('last_login_date');
+            const today = new Date().toDateString();
+
+            if (lastLoginDate !== today) {
+                const currentBalance = getUserBalance();
+                const isFreshUser = localStorage.getItem('user_balance') === null;
+
+                // Endowed Progress Initialization check
+                // If user has no record of total recharge, give them the endowment
+                const totalRecharge = localStorage.getItem('user_total_recharge');
+                if (!totalRecharge) {
+                    localStorage.setItem('user_total_recharge', ENDOWED_PROGRESS.toString());
+                }
+
+                if (!isFreshUser) {
+                    setUserBalance(currentBalance + DAILY_LOGIN_BONUS);
+                    setShowDailyBonus(true);
+                } else {
+                    setUserBalance(INITIAL_BALANCE);
+                }
+                localStorage.setItem('last_login_date', today);
             }
-        };
-        window.addEventListener('balance_updated', handleBalanceChange);
-
-        const checkDailyLogin = async () => {
-            // 只在登录状态下检查每日奖励
-            const user = await authService.getCurrentUser();
-            if (!user) return;
-
-            const canClaim = await userService.canClaimDailyBonus();
-            if (canClaim) {
-                setShowDailyBonus(true);
-            }
-
-            // 同步余额
-            await handleBalanceChange();
         };
 
         checkDailyLogin();
@@ -801,7 +819,8 @@ const HomePage = () => {
         setTimeout(preloadImages, 1000);
 
         return () => {
-            window.removeEventListener('balance_updated', handleBalanceChange);
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('balance_updated', handleStorageChange);
         };
     }, []);
 
@@ -835,7 +854,7 @@ const HomePage = () => {
 
     return (
         <div className="bg-background-dark font-display text-white min-h-[100dvh] relative overflow-hidden">
-            {showDailyBonus && <DailyBonusModal onClaim={() => setShowDailyBonus(false)} />}
+            {showDailyBonus && <DailyBonusModal onClose={() => setShowDailyBonus(false)} />}
             <LoginModal
                 isOpen={showLoginModal}
                 onClose={() => setShowLoginModal(false)}
@@ -855,8 +874,8 @@ const HomePage = () => {
                                 <span className="text-xs font-bold">{lang === 'zh' ? 'En' : '中'}</span>
                             </button>
                             <div onClick={() => handleNavigate('/store')} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-md border border-primary/30 shadow-[0_0_12px_rgba(244,192,37,0.15)] hover:bg-white/10 transition-colors">
-                                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span>
-                                <span className="text-xs font-medium text-white/90 tracking-wide">{t('app.balance')}: <span className="text-primary font-bold ml-0.5">{balance === null ? '--' : balance}</span></span>
+                                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>{getUserPlan() === 'free' ? 'dark_mode' : getUserPlan() === 'plus' ? 'star' : 'auto_awesome'}</span>
+                                <span className="text-xs font-medium text-white/90 tracking-wide"><span className="text-primary font-bold">{getUserPlan() === 'free' ? 'Free' : getUserPlan() === 'plus' ? 'Plus' : 'Pro'}</span></span>
                             </div>
                         </div>
                     </div>
@@ -921,13 +940,11 @@ const QuestionGuide = () => {
     const [question, setQuestion] = useState("");
     const [showNoFundsModal, setShowNoFundsModal] = useState(false);
 
-    const handleStart = async () => {
+    const handleStart = () => {
         triggerHaptic();
         if (!spread) return;
 
-        // 从 Supabase 获取实时余额
-        const balanceData = await userService.getUserBalance();
-        const currentBalance = balanceData?.balance || 0;
+        const currentBalance = getUserBalance();
         let actualCost = spread.cost;
 
         if (currentBalance < actualCost) {
@@ -995,32 +1012,22 @@ const PaymentScreen = () => {
     const deductionPerformedRef = useRef(false);
 
     useEffect(() => {
-        const performDeduction = async () => {
-            // 立即设置防止 StrictMode 双重调用
-            if (deductionPerformedRef.current) return;
-            deductionPerformedRef.current = true;
-
-            const success = await userService.consumeBalance(spread.cost, `占卜消费: ${spread.name}`);
-
-            if (!success) {
-                deductionPerformedRef.current = false; // 失败时重置
+        if (!deductionPerformedRef.current) {
+            const currentBalance = getUserBalance();
+            if (currentBalance >= spread.cost) {
+                setUserBalance(currentBalance - spread.cost);
+                deductionPerformedRef.current = true;
+            } else {
                 navigate('/store');
                 return;
             }
+        }
+        const timer = setTimeout(() => {
+            navigate('/shuffle', { state: { spreadId, question }, replace: true });
+        }, 2400);
 
-            // 触发余额更新事件 + 更新缓存
-            const balanceData = await userService.getUserBalance();
-            if (balanceData) {
-                localStorage.setItem('balance_cache', balanceData.balance.toString());
-            }
-            window.dispatchEvent(new Event('balance_updated'));
-
-            setTimeout(() => {
-                navigate('/shuffle', { state: { spreadId, question }, replace: true });
-            }, 2400);
-        };
-        performDeduction();
-    }, [navigate, spreadId, question, spread.cost, spread.name]);
+        return () => clearTimeout(timer);
+    }, [navigate, spreadId, question, spread.cost]);
 
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden">
@@ -1340,15 +1347,15 @@ const ReadingScreen = () => {
     const displayCards = cards || (passedReading ? passedReading.cards : []);
     const displaySpreadId = spreadId || (passedReading ? passedReading.spreadType : 'daily');
 
-    const handleSaveToggle = async () => {
+    const handleSaveToggle = () => {
         if (loading) return;
         triggerHaptic();
 
         if (isSaved && currentReadingId) {
             setShowConfirm({
                 message: t('reading.delete_confirm'),
-                action: async () => {
-                    await readingsService.deleteReading(currentReadingId);
+                action: () => {
+                    deleteReading(currentReadingId);
                     setIsSaved(false);
                     setCurrentReadingId(undefined);
                     showToast(t('reading.removed'), 'delete');
@@ -1356,21 +1363,20 @@ const ReadingScreen = () => {
                 }
             });
         } else {
-            const saved = await readingsService.saveReading({
+            const newId = Date.now().toString();
+            const newReading: Reading = {
+                id: newId,
+                date: new Date().toISOString(),
                 spreadType: displaySpreadId,
                 spreadName: spreadName || (passedReading ? passedReading.spreadName : ''),
                 question: question || (lang === 'zh' ? "无问题的指引" : "General Guidance"),
                 cards: displayCards,
-                interpretation: interpretation,
-                language: lang
-            });
-            if (saved) {
-                setIsSaved(true);
-                setCurrentReadingId(saved.id);
-                showToast(t('reading.saved_toast'), 'book');
-            } else {
-                showToast('保存失败', 'error');
-            }
+                interpretation: interpretation
+            };
+            saveReading(newReading);
+            setIsSaved(true);
+            setCurrentReadingId(newId);
+            showToast(t('reading.saved_toast'), 'book');
         }
     };
 
@@ -1541,18 +1547,13 @@ const ReadingScreen = () => {
 const JournalScreen = () => {
     const { t } = useLanguage();
     const [readings, setReadings] = useState<Reading[]>([]);
-    const [loading, setLoading] = useState(true);
     const [showConfirm, setShowConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
-    const loadReadings = async () => {
-        setLoading(true);
-        const records = await readingsService.getReadings();
-        setReadings(records.map(readingsService.toFrontendReading));
-        setLoading(false);
-    };
-
     useEffect(() => {
-        loadReadings();
+        setReadings(getReadings());
+        const handleUpdate = () => setReadings(getReadings());
+        window.addEventListener('readings_updated', handleUpdate);
+        return () => window.removeEventListener('readings_updated', handleUpdate);
     }, []);
 
     const navigate = useNavigate();
@@ -1576,9 +1577,8 @@ const JournalScreen = () => {
         triggerHaptic();
         setShowConfirm({
             message: t('journal.delete_confirm'),
-            action: async () => {
-                await readingsService.deleteReading(id);
-                setReadings(prev => prev.filter(r => r.id !== id));
+            action: () => {
+                deleteReading(id);
                 showToast(t('journal.deleted'), 'delete');
                 setShowConfirm(null);
             }
@@ -1590,19 +1590,7 @@ const JournalScreen = () => {
             {showConfirm && <ConfirmModal message={showConfirm.message} onConfirm={showConfirm.action} onCancel={() => setShowConfirm(null)} />}
             <BackHeader title={t('journal.title')} />
             <div className="p-4 flex flex-col gap-4">
-                {loading ? (
-                    // 骨架屏加载动画
-                    [...Array(3)].map((_, i) => (
-                        <div key={i} className="glass-panel p-4 rounded-xl flex gap-4 animate-pulse">
-                            <div className="w-16 h-24 bg-white/10 rounded"></div>
-                            <div className="flex-1 space-y-2">
-                                <div className="h-4 bg-white/10 rounded w-1/3"></div>
-                                <div className="h-3 bg-white/10 rounded w-1/2"></div>
-                                <div className="h-3 bg-white/10 rounded w-full"></div>
-                            </div>
-                        </div>
-                    ))
-                ) : readings.length === 0 ? (
+                {readings.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 opacity-50">
                         <span className="material-symbols-outlined text-6xl mb-4">auto_stories</span>
                         <p>{t('journal.empty')}</p>
@@ -1632,19 +1620,18 @@ const JournalScreen = () => {
 const SettingsScreen = () => {
     const { t } = useLanguage();
     const [settings, setSettings] = useState(getSettings());
-    const toggleSetting = async (key: string) => {
+    const toggleSetting = (key: string) => {
         triggerHaptic();
         const newSettings = { ...settings, [key]: !settings[key] };
         setSettings(newSettings);
-        // 同步到 Supabase
-        await userService.updateUserSettings({ [key]: newSettings[key] });
+        saveSettings(newSettings);
         if (key === 'haptic' && newSettings[key] && navigator.vibrate) navigator.vibrate(50);
     };
     return (
         <div className="bg-background-dark min-h-[100dvh] relative pb-24 font-display">
             <BackHeader title={t('settings.title')} />
             <div className="p-4 flex flex-col gap-4 mt-2">
-                {[{ key: 'haptic', label: t('settings.haptic'), icon: 'vibration' }, { key: 'notification', label: t('settings.notification'), icon: 'notifications' }].map(item => (
+                {[{ key: 'music', label: t('settings.music'), icon: 'music_note' }, { key: 'haptic', label: t('settings.haptic'), icon: 'vibration' }, { key: 'notification', label: t('settings.notification'), icon: 'notifications' }].map(item => (
                     <div key={item.key} className="glass-panel p-4 rounded-xl flex justify-between items-center"><div className="flex items-center gap-3"><span className="material-symbols-outlined text-white/60">{item.icon}</span><span className="text-white font-medium">{item.label}</span></div><div onClick={() => toggleSetting(item.key)} className={`w-12 h-6 rounded-full relative cursor-pointer transition-colors duration-300 ${settings[item.key] ? 'bg-primary' : 'bg-white/20'}`}><div className={`absolute top-1 bottom-1 w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-sm ${settings[item.key] ? 'left-7' : 'left-1'}`}></div></div></div>
                 ))}
                 <div className="mt-4 px-2"><p className="text-xs text-white/30 text-center">Version 1.0.0 (Beta)</p></div>
@@ -1656,70 +1643,21 @@ const SettingsScreen = () => {
 const LoginScreen = () => {
     const navigate = useNavigate();
     const { t } = useLanguage();
-    const [mode, setMode] = useState<'login' | 'register'>('login');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
+    const [identifier, setIdentifier] = useState('');
+    const [code, setCode] = useState('');
+    const [timer, setTimer] = useState(0);
     const [agreed, setAgreed] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
-    // 切换模式时清空确认密码
-    const handleModeSwitch = () => {
-        setMode(mode === 'login' ? 'register' : 'login');
-        setConfirmPassword('');
-        setError(null);
-    };
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval>;
+        if (timer > 0) interval = setInterval(() => setTimer(t => t - 1), 1000);
+        return () => clearInterval(interval);
+    }, [timer]);
 
-    const handleSubmit = async () => {
-        triggerHaptic();
-        if (!agreed) { showToast('Please agree to terms', 'assignment_late'); return; }
-        if (!email.includes('@')) { showToast(t('toast.email_err'), 'error'); return; }
-        if (password.length < 6) { showToast('密码至少6位', 'lock'); return; }
-
-        // 注册模式需要确认密码
-        if (mode === 'register') {
-            if (!confirmPassword) { showToast('请确认密码', 'lock'); return; }
-            if (password !== confirmPassword) { showToast('两次输入的密码不一致', 'error'); return; }
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            if (mode === 'register') {
-                const { user, error } = await authService.signUpWithPassword(email, password);
-                if (error) {
-                    setError(error.message);
-                    showToast(error.message, 'error');
-                } else if (user) {
-                    setAuth(email, 'email');
-                    await syncBalanceFromSupabase();
-                    showToast('注册成功', 'check_circle');
-                    setTimeout(() => navigate('/profile', { replace: true }), 1000);
-                }
-            } else {
-                const { user, error } = await authService.signInWithPassword(email, password);
-                if (error) {
-                    const msg = error.message === 'Invalid login credentials' ? '邮箱或密码错误' : error.message;
-                    setError(msg);
-                    showToast(msg, 'error');
-                } else if (user) {
-                    setAuth(email, 'email');
-                    await syncBalanceFromSupabase();
-                    showToast(t('toast.login_success'), 'check_circle');
-                    setTimeout(() => navigate('/profile', { replace: true }), 1000);
-                }
-            }
-        } catch (err) {
-            setError('操作失败');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const handleSendCode = () => { setTimer(60); showToast(t('toast.code_sent'), 'sms'); };
+    const handleLogin = () => { triggerHaptic(); if (!agreed) { showToast('Please agree to terms', 'assignment_late'); return; } if (!code) { showToast(t('toast.code_err'), 'lock'); return; } setAuth(identifier, loginMethod); showToast(t('toast.login_success'), 'check_circle'); setTimeout(() => navigate('/profile', { replace: true }), 1000); };
 
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden font-display">
@@ -1727,78 +1665,9 @@ const LoginScreen = () => {
             <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[#3a206e] via-[#1a0b2e] to-black"></div>
             <button onClick={() => navigate(-1)} className="absolute top-12 left-6 z-50 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all border border-white/5"><span className="material-symbols-outlined" style={{ fontSize: "20px" }}>arrow_back</span></button>
             <div className="relative z-10 flex flex-col justify-center h-full px-8 pb-20">
-                <div className="mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">{mode === 'login' ? t('login.title') : '创建账号'}</h1>
-                    <p className="text-white/50 text-sm">{mode === 'login' ? t('login.subtitle') : '注册新账号开始占卜之旅'}</p>
-                </div>
-
-                <div className="flex flex-col gap-6">
-                    <div className="space-y-4">
-                        {/* 邮箱输入 */}
-                        <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors">
-                            <span className="material-symbols-outlined text-white/40">mail</span>
-                            <input
-                                type="email"
-                                placeholder={t('login.email')}
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0"
-                            />
-                        </div>
-                        {/* 密码输入 */}
-                        <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors">
-                            <span className="material-symbols-outlined text-white/40">lock</span>
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                placeholder="密码 (至少6位)"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0"
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-                        {/* 确认密码（仅注册模式） */}
-                        {mode === 'register' && (
-                            <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors">
-                                <span className="material-symbols-outlined text-white/40">lock</span>
-                                <input
-                                    type={showConfirmPassword ? 'text' : 'password'}
-                                    placeholder="确认密码"
-                                    value={confirmPassword}
-                                    onChange={e => setConfirmPassword(e.target.value)}
-                                    className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0"
-                                >
-                                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-                    <div className="flex items-start gap-3 px-1">
-                        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 size-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${agreed ? 'bg-primary border-primary' : 'border-white/30 bg-transparent'}`}>
-                            {agreed && <span className="material-symbols-outlined text-black text-[12px] font-bold">check</span>}
-                        </div>
-                        <p className="text-xs text-white/50 leading-relaxed select-none">{t('login.agree_prefix')} <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.terms')}</span> & <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.privacy')}</span>{t('login.agree_suffix')}</p>
-                    </div>
-                    <button onClick={handleSubmit} disabled={loading} className="w-full h-14 bg-gradient-to-r from-primary to-[#eab308] rounded-xl text-[#1a0b2e] text-lg font-bold tracking-wide shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50">
-                        {loading ? '处理中...' : (mode === 'login' ? t('login.btn') : '注册')}
-                    </button>
-                    <button onClick={handleModeSwitch} className="text-white/40 text-sm hover:text-white transition-colors">
-                        {mode === 'login' ? '没有账号？点击注册' : '已有账号？点击登录'}
-                    </button>
-                </div>
-            </div>
+                <div className="mb-8"><h1 className="text-4xl font-bold text-white mb-2">{t('login.title')}</h1><p className="text-white/50 text-sm">{t('login.subtitle')}</p></div>
+                <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 mb-6 relative"><div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg transition-all duration-300 shadow-lg ${loginMethod === 'phone' ? 'left-1' : 'left-[calc(50%+3px)]'}`}></div><button onClick={() => { setLoginMethod('phone'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'phone' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_phone')}</button><button onClick={() => { setLoginMethod('email'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'email' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_email')}</button></div>
+                <div className="flex flex-col gap-6"><div className="space-y-4"><div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">{loginMethod === 'phone' ? 'smartphone' : 'mail'}</span><input type={loginMethod === 'phone' ? 'tel' : 'email'} placeholder={loginMethod === 'phone' ? t('login.phone') : t('login.email')} value={identifier} onChange={e => setIdentifier(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /></div><div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">lock</span><input type="number" placeholder={t('login.code')} value={code} onChange={e => setCode(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /><button onClick={handleSendCode} disabled={timer > 0} className="shrink-0 text-primary text-sm font-bold disabled:text-white/30">{timer > 0 ? `${timer}s` : t('login.get_code')}</button></div></div><div className="flex items-start gap-3 px-1"><div onClick={() => setAgreed(!agreed)} className={`mt-0.5 size-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${agreed ? 'bg-primary border-primary' : 'border-white/30 bg-transparent'}`}>{agreed && <span className="material-symbols-outlined text-black text-[12px] font-bold">check</span>}</div><p className="text-xs text-white/50 leading-relaxed select-none">{t('login.agree_prefix')} <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.terms')}</span> & <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.privacy')}</span>{t('login.agree_suffix')}</p></div><button onClick={handleLogin} className="w-full h-14 bg-gradient-to-r from-primary to-[#eab308] rounded-xl text-[#1a0b2e] text-lg font-bold tracking-wide shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110 active:scale-[0.98] transition-all">{t('login.btn')}</button></div></div>
         </div>
     );
 };
@@ -1807,83 +1676,33 @@ const ProfileScreen = () => {
     const navigate = useNavigate();
     const { t, lang, setLang } = useLanguage();
     const [auth, setAuthData] = useState<AuthData | null>(getAuth());
-    const [balance, setBalance] = useState(0);
+    const [balance, setBalance] = useState(getUserBalance());
     const [showContact, setShowContact] = useState(false);
     const [termsOpen, setTermsOpen] = useState(false);
     const [settings, setSettings] = useState(getSettings());
-    const [showConfirm, setShowConfirm] = useState<{ message: string, action: () => void } | null>(null);
 
     useEffect(() => {
-        const loadBalance = async () => {
-            const data = await userService.getUserBalance();
-            if (data) setBalance(data.balance);
-        };
-        loadBalance();
-
         const handleAuthUpdate = () => setAuthData(getAuth());
-        const handleBalanceUpdate = async () => {
-            const data = await userService.getUserBalance();
-            if (data) setBalance(data.balance);
-        };
+        const handleBalanceUpdate = () => setBalance(getUserBalance());
         window.addEventListener('auth_updated', handleAuthUpdate);
         window.addEventListener('balance_updated', handleBalanceUpdate);
         return () => { window.removeEventListener('auth_updated', handleAuthUpdate); window.removeEventListener('balance_updated', handleBalanceUpdate); };
     }, []);
 
-    const toggleSetting = async (key: string) => {
-        const newSettings = { ...settings, [key]: !settings[key] };
-        setSettings(newSettings);
-        await userService.updateUserSettings({ [key]: newSettings[key] });
-        triggerHaptic();
-    };
-
-    const handleLogout = () => {
-        triggerHaptic();
-        setShowConfirm({
-            message: t('profile.logout_confirm'),
-            action: async () => {
-                await authService.signOut();
-                clearAuth();
-                showToast(t('toast.logout'), 'logout');
-                setShowConfirm(null);
-            }
-        });
-    };
-
-    const handleDeleteAccount = () => {
-        triggerHaptic();
-        setShowConfirm({
-            message: t('profile.delete_confirm'),
-            action: async () => {
-                // 调用删除账号函数（真正删除 Supabase 用户）
-                const { error } = await authService.deleteAccount();
-                if (error) {
-                    showToast('注销失败: ' + error.message, 'error');
-                    setShowConfirm(null);
-                    return;
-                }
-                // 清除本地数据
-                clearAuth();
-                localStorage.clear();
-                showToast('账号已注销', 'delete');
-                window.location.reload();
-            }
-        });
-    };
-
+    const toggleSetting = (key: string) => { const newSettings = { ...settings, [key]: !settings[key] }; setSettings(newSettings); saveSettings(newSettings); triggerHaptic(); };
+    const handleLogout = () => { if (window.confirm(t('profile.logout_confirm'))) { clearAuth(); showToast(t('toast.logout'), 'logout'); } };
+    const handleDeleteAccount = () => { if (window.confirm(t('profile.delete_confirm'))) { clearAuth(); localStorage.clear(); window.location.reload(); } };
     const getMaskedIdentifier = () => { if (!auth) return ''; if (auth.type === 'email') { const [name, domain] = auth.identifier.split('@'); return `${name.substring(0, 1)}***@${domain}`; } return auth.identifier.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'); };
 
     return (
         <div className="bg-background-dark min-h-[100dvh] relative pb-24 font-display">
             {showContact && <ContactModal email="dove00001@icloud.com" onClose={() => setShowContact(false)} />}
             {termsOpen && <TermsModal onClose={() => setTermsOpen(false)} />}
-            {showConfirm && <ConfirmModal message={showConfirm.message} onConfirm={showConfirm.action} onCancel={() => setShowConfirm(null)} />}
-
             <BackHeader title={t('profile.title')} />
             <div className="flex flex-col items-center pt-8 px-6">
                 <div className="relative mb-6"><div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div><div className="relative size-24 rounded-full bg-[#1a0b2e] border-2 border-primary/30 flex items-center justify-center overflow-hidden shadow-2xl">{auth ? <span className="text-3xl font-bold text-white bg-primary/20 size-full flex items-center justify-center">{auth.identifier.substring(0, 1).toUpperCase()}</span> : <span className="material-symbols-outlined text-4xl text-white/20">person</span>}</div></div>
                 {auth ? (
-                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0, 8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('store.current')}</span><span className="text-2xl font-bold text-primary">{balance}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('profile.recharge')}</button></div></div>
+                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0, 8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('plan.current')}</span><span className="text-2xl font-bold text-primary">{getUserPlan() === 'free' ? 'Free' : getUserPlan() === 'plus' ? 'Plus' : 'Pro'}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('plan.manage')}</button></div></div>
                 ) : (
                     <div className="text-center w-full mb-8"><h2 className="text-xl font-bold text-white mb-2">Guest</h2><button onClick={() => navigate('/login')} className="mt-4 px-8 py-3 bg-white text-[#1a0b2e] font-bold rounded-full shadow-lg hover:scale-105 transition-transform">{t('profile.login')}</button></div>
                 )}
@@ -1891,6 +1710,7 @@ const ProfileScreen = () => {
                     <button onClick={() => navigate('/journal')} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400"><span className="material-symbols-outlined text-lg">auto_stories</span></div><span className="text-white text-sm">{t('profile.journal')}</span></div><span className="material-symbols-outlined text-white/20 group-hover:text-white/60 text-lg">chevron_right</span></button>
                     <div className="glass-panel rounded-xl p-0 overflow-hidden mb-2">
                         <div className="p-4 border-b border-white/5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400"><span className="material-symbols-outlined text-lg">translate</span></div><span className="text-white font-medium text-sm">Language</span></div><button onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')} className="text-primary font-bold text-xs border border-primary/30 rounded px-2 py-1">{lang === 'zh' ? '中文' : 'English'}</button></div>
+                        <div className="p-4 border-b border-white/5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-white/10 flex items-center justify-center"><span className="material-symbols-outlined text-white/70 text-lg">music_note</span></div><span className="text-white font-medium text-sm">{t('settings.music')}</span></div><div onClick={() => toggleSetting('music')} className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${settings.music ? 'bg-primary' : 'bg-white/20'}`}><div className={`absolute top-0.5 size-4 rounded-full bg-white transition-all ${settings.music ? 'left-5.5' : 'left-0.5'}`}></div></div></div>
                         <div className="p-4 flex items-center justify-between"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-white/10 flex items-center justify-center"><span className="material-symbols-outlined text-white/70 text-lg">vibration</span></div><span className="text-white font-medium text-sm">{t('settings.haptic')}</span></div><div onClick={() => toggleSetting('haptic')} className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${settings.haptic ? 'bg-primary' : 'bg-white/20'}`}><div className={`absolute top-0.5 size-4 rounded-full bg-white transition-all ${settings.haptic ? 'left-5.5' : 'left-0.5'}`}></div></div></div>
                     </div>
                     <button onClick={() => setShowContact(true)} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-400"><span className="material-symbols-outlined text-lg">support_agent</span></div><span className="text-white text-sm">{t('profile.contact')}</span></div><span className="material-symbols-outlined text-white/20 group-hover:text-white/60 text-lg">chevron_right</span></button>
@@ -1903,268 +1723,112 @@ const ProfileScreen = () => {
     );
 };
 
-// 支付结果页面
-const PaymentResultScreen = () => {
-    const navigate = useNavigate();
-    const { t, lang } = useLanguage();
-    const location = useLocation();
-    const [status, setStatus] = useState<'loading' | 'success' | 'failed' | 'pending'>('loading');
-    const [orderNo, setOrderNo] = useState('');
-
-    useEffect(() => {
-        const checkPayment = async () => {
-            // 从 URL 参数获取订单信息
-            const params = new URLSearchParams(location.search);
-            const tradeStatus = params.get('trade_status');
-            const outTradeNo = params.get('out_trade_no') || localStorage.getItem('pending_order') || '';
-
-            setOrderNo(outTradeNo);
-
-            if (tradeStatus === 'TRADE_SUCCESS') {
-                setStatus('success');
-                // 刷新余额
-                window.dispatchEvent(new Event('balance_updated'));
-                localStorage.removeItem('pending_order');
-                triggerStrongHaptic();
-            } else if (outTradeNo) {
-                // 查询订单状态
-                const order = await paymentService.getOrderStatus(outTradeNo);
-                if (order?.status === 'paid') {
-                    setStatus('success');
-                    window.dispatchEvent(new Event('balance_updated'));
-                    localStorage.removeItem('pending_order');
-                    triggerStrongHaptic();
-                } else if (order?.status === 'pending') {
-                    setStatus('pending');
-                } else {
-                    setStatus('failed');
-                }
-            } else {
-                setStatus('failed');
-            }
-        };
-
-        checkPayment();
-    }, [location.search]);
-
-    const statusConfig = {
-        loading: { icon: 'hourglass_empty', color: 'text-white/60', title: '查询中...', desc: '正在确认支付结果' },
-        success: { icon: 'check_circle', color: 'text-green-400', title: '支付成功', desc: '金币已到账，祝你好运！' },
-        pending: { icon: 'schedule', color: 'text-yellow-400', title: '等待支付', desc: '订单尚未支付完成' },
-        failed: { icon: 'error', color: 'text-red-400', title: '支付失败', desc: '请重新尝试或联系客服' },
-    };
-
-    const config = statusConfig[status];
-
-    return (
-        <div className="bg-background-dark min-h-screen flex flex-col items-center justify-center px-6">
-            <div className="glass-panel p-8 rounded-2xl w-full max-w-sm flex flex-col items-center text-center">
-                <div className={`size-20 rounded-full bg-white/5 flex items-center justify-center mb-6 ${status === 'loading' ? 'animate-pulse' : ''}`}>
-                    <span className={`material-symbols-outlined text-5xl ${config.color}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                        {config.icon}
-                    </span>
-                </div>
-
-                <h1 className="text-2xl font-bold text-white mb-2">{config.title}</h1>
-                <p className="text-white/60 text-sm mb-6">{config.desc}</p>
-
-                {orderNo && (
-                    <p className="text-xs text-white/30 mb-6 font-mono">订单号: {orderNo}</p>
-                )}
-
-                <div className="flex gap-3 w-full">
-                    <button
-                        onClick={() => navigate('/store')}
-                        className="flex-1 py-3 bg-white/5 text-white/70 font-bold rounded-xl hover:bg-white/10 transition-all"
-                    >
-                        返回商店
-                    </button>
-                    <button
-                        onClick={() => navigate('/')}
-                        className="flex-1 py-3 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl hover:brightness-110 shadow-lg"
-                    >
-                        开始占卜
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 const StoreScreen = () => {
-    const navigate = useNavigate();
     const { t, lang } = useLanguage();
-    // Stale-while-revalidate: 先用缓存值
-    const cachedBalance = localStorage.getItem('balance_cache');
-    const cachedRecharge = localStorage.getItem('recharge_cache');
-    const [balance, setBalance] = useState(cachedBalance ? parseInt(cachedBalance) : 0);
-    const [totalRecharge, setTotalRecharge] = useState(cachedRecharge ? parseInt(cachedRecharge) : 0);
-    const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
+    const [currentPlan, setCurrentPlan] = useState<PlanType>(getUserPlan());
 
     useEffect(() => {
-        const loadBalance = async () => {
-            const data = await userService.getUserBalance();
-            if (data) {
-                setBalance(data.balance);
-                setTotalRecharge(data.total_recharge);
-                localStorage.setItem('balance_cache', data.balance.toString());
-                localStorage.setItem('recharge_cache', data.total_recharge.toString());
-            }
-        };
-        loadBalance();
-
-        const handleUpdate = async () => {
-            const data = await userService.getUserBalance();
-            if (data) {
-                setBalance(data.balance);
-                setTotalRecharge(data.total_recharge);
-            }
-        };
-        window.addEventListener('balance_updated', handleUpdate);
-        return () => window.removeEventListener('balance_updated', handleUpdate);
+        const handleUpdate = () => setCurrentPlan(getUserPlan());
+        window.addEventListener('plan_updated', handleUpdate);
+        return () => window.removeEventListener('plan_updated', handleUpdate);
     }, []);
 
-    const [isPaying, setIsPaying] = useState(false);
-    const [payType, setPayType] = useState<'alipay' | 'wxpay'>('alipay');
-
-    const handlePurchase = async (item: any) => {
-        if (isPaying) return;
-        setIsPaying(true);
+    const handleSelectPlan = (planId: PlanType) => {
         triggerHaptic();
-
-        try {
-            const result = await paymentService.createPaymentOrder(
-                item.id,
-                lang === 'zh' ? item.priceCn : item.price,
-                item.coins,
-                item.bonus,
-                payType
-            );
-
-            if (!result.success || !result.payUrl) {
-                const errorMsg = result.error || '创建订单失败';
-                showToast(errorMsg, 'error');
-                setIsPaying(false);
-                return;
-            }
-
-            // 保存订单号到 localStorage 用于查询
-            localStorage.setItem('pending_order', result.outTradeNo || '');
-
-            // 跳转到易支付页面
-            window.location.href = result.payUrl;
-        } catch (error: any) {
-            const msg = error?.message || '未知错误';
-            showToast('网络错误', 'error');
-            console.error('Payment error:', msg);
-            setIsPaying(false);
-        }
+        if (planId === currentPlan) return;
+        setUserPlan(planId);
+        showToast(t('plan.switched'), 'check_circle');
     };
-
-    const isUnlocked = totalRecharge >= UNLOCK_THRESHOLD;
-    const isEndowed = totalRecharge >= ENDOWED_PROGRESS && totalRecharge < UNLOCK_THRESHOLD && !localStorage.getItem('endowed_consumed');
-
-    const unlockTarget = UNLOCK_THRESHOLD;
-    const currentProgressDisplay = totalRecharge.toFixed(0);
 
     return (
         <div className="bg-background-dark min-h-screen pb-24 relative overflow-hidden">
-            {showUnlockAnimation && <GrandUnlockOverlay onClose={() => setShowUnlockAnimation(false)} />}
+            <div className="fixed inset-0 z-0 pointer-events-none nebula-bg"></div>
 
-            <div className="pt-12 px-6 pb-4">
-                <h1 className="text-2xl font-bold text-white mb-6">{t('store.title')}</h1>
+            <div className="relative z-10 pt-12 px-4 pb-4">
+                <h1 className="text-2xl font-bold text-white mb-2 px-2">{t('plan.title')}</h1>
+                <p className="text-white/40 text-xs px-2 mb-6">{lang === 'zh' ? '选择适合你的宇宙频率' : 'Choose your cosmic frequency'}</p>
 
-                {/* Balance Card */}
-                <div className="w-full bg-gradient-to-r from-[#f4c025] to-[#b4860b] rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
-                    <div className="absolute right-[-20px] top-[-20px] opacity-20">
-                        <span className="material-symbols-outlined text-[120px]">monetization_on</span>
-                    </div>
-                    <p className="text-[#1a0b2e]/70 font-bold text-sm mb-1">{t('store.current')}</p>
-                    <h2 className="text-[#1a0b2e] text-4xl font-bold">{balance}</h2>
-                </div>
+                <div className="flex flex-col gap-4">
+                    {SUBSCRIPTION_PLANS.map((plan) => {
+                        const isCurrent = plan.id === currentPlan;
+                        const isRecommended = plan.recommended;
 
-                {/* BEHAVIORAL: Goal Gradient Progress Card */}
-                <div className={`w-full rounded-2xl p-6 mb-8 relative overflow-hidden border transition-all duration-500 ${isUnlocked ? 'bg-gradient-to-br from-[#2e1065] to-[#0f0518] border-primary/50 shadow-[0_0_20px_rgba(244,192,37,0.2)]' : 'glass-panel border-white/10'}`}>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div>
-                            <h3 className={`font-bold text-lg ${isUnlocked ? 'text-primary' : 'text-white'}`}>{t('store.unlock_title')}</h3>
-                            <p className="text-xs text-white/50">{t('store.unlock_desc')}</p>
-                        </div>
-                        <div className={`size-10 rounded-full flex items-center justify-center transition-colors duration-500 ${isUnlocked ? 'bg-primary text-[#1a0b2e]' : 'bg-white/10 text-white/30'}`}>
-                            <span className="material-symbols-outlined">{isUnlocked ? 'lock_open' : 'lock'}</span>
-                        </div>
-                    </div>
-
-                    {isUnlocked ? (
-                        <div className="relative z-10 animate-fade-in">
-                            <p className="text-primary font-bold text-sm flex items-center gap-2">
-                                <span className="material-symbols-outlined text-sm">verified</span>
-                                {t('store.unlocked')}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="relative z-10">
-                            <div className="flex justify-between text-xs text-white/70 mb-2">
-                                <span>{t('store.locked_status').replace('{current}', `${currentProgressDisplay}`).replace('{target}', `${unlockTarget}`)}</span>
-                            </div>
-
-                            {/* The Nebula Progress Bar */}
-                            <NebulaProgress current={totalRecharge} target={UNLOCK_THRESHOLD} isEndowed={true} />
-
-                            {/* Endowed Progress Feedback */}
-                            {isEndowed && (
-                                <p className="text-[10px] text-primary/80 mt-2 flex items-center gap-1 animate-pulse">
-                                    <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
-                                    {t('store.endowed')}
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Decorative Background */}
-                    <div className="absolute -bottom-4 -right-4 opacity-10 rotate-12">
-                        <span className="material-symbols-outlined text-8xl">style</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    {STORE_ITEMS.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => handlePurchase(item)}
-                            className={`glass-panel p-4 rounded-xl flex flex-col items-center relative group overflow-hidden border border-white/10 hover:border-primary/50 transition-all ${item.recommend ? 'border-primary/60 shadow-[0_0_15px_rgba(244,192,37,0.3)] bg-gradient-to-b from-primary/10 to-transparent' : ''}`}
-                        >
-                            {item.recommend && (
-                                <div className="absolute top-0 right-0 bg-primary text-[#1a0b2e] text-[10px] font-bold px-2 py-0.5 rounded-bl-lg shadow-sm z-10">
-                                    {t('store.recommend')}
-                                </div>
-                            )}
-
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
-                            <span
-                                className={`material-symbols-outlined text-4xl mb-3 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)] group-hover:scale-110 transition-transform duration-300 ${item.recommend ? 'text-primary' : 'text-white/60'}`}
-                                style={{ fontVariationSettings: "'FILL' 1" }}
+                        return (
+                            <div
+                                key={plan.id}
+                                className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
+                                    isRecommended
+                                        ? 'border-2 border-primary shadow-[0_0_30px_rgba(244,192,37,0.15)]'
+                                        : 'border border-white/10'
+                                } ${isCurrent ? 'bg-white/[0.08]' : 'bg-white/[0.03]'}`}
                             >
-                                monetization_on
-                            </span>
+                                {/* Recommended badge */}
+                                {isRecommended && (
+                                    <div className="absolute top-0 right-0 bg-gradient-to-l from-primary to-[#eab308] text-[#1a0b2e] text-[10px] font-bold px-3 py-1 rounded-bl-xl tracking-wider uppercase">
+                                        {t('plan.recommended')}
+                                    </div>
+                                )}
 
-                            <div className="text-white font-bold text-2xl mb-1">{item.coins + item.bonus} <span className="text-xs font-normal text-white/50">{t('store.coins')}</span></div>
+                                <div className="p-5">
+                                    {/* Header */}
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={`size-10 rounded-full flex items-center justify-center ${
+                                            isRecommended ? 'bg-primary/20' : 'bg-white/10'
+                                        }`}>
+                                            <span
+                                                className={`material-symbols-outlined text-xl ${isRecommended ? 'text-primary' : 'text-white/60'}`}
+                                                style={{ fontVariationSettings: "'FILL' 1" }}
+                                            >
+                                                {plan.icon}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-white">{lang === 'zh' ? plan.nameCn : plan.name}</h3>
+                                                {isCurrent && (
+                                                    <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold border border-primary/30">
+                                                        {t('plan.current_badge')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-white/50 text-sm font-bold">
+                                                {plan.priceCn === 0 ? (
+                                                    t('plan.free_label')
+                                                ) : (
+                                                    <>{lang === 'zh' ? `¥${plan.priceCn}` : `$${plan.price}`}<span className="text-white/30 font-normal text-xs">{t('plan.per_month')}</span></>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                            {item.bonus > 0 ? (
-                                <div className="bg-green-500/10 text-green-400 text-[10px] font-bold px-2 py-0.5 rounded mb-3 border border-green-500/20">
-                                    {t('store.gift')} {item.bonus}
+                                    {/* Features */}
+                                    <div className="flex flex-col gap-2 mb-5">
+                                        {plan.features.map((feat) => (
+                                            <div key={feat.key} className="flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                                                <span className="text-white/70 text-xs">{lang === 'zh' ? feat.zh : feat.en}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Action button */}
+                                    <button
+                                        onClick={() => handleSelectPlan(plan.id)}
+                                        disabled={isCurrent}
+                                        className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] ${
+                                            isCurrent
+                                                ? 'bg-white/5 text-white/30 cursor-default border border-white/10'
+                                                : isRecommended
+                                                    ? 'bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110'
+                                                    : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
+                                        }`}
+                                    >
+                                        {isCurrent ? t('plan.current_badge') : t('plan.subscribe')}
+                                    </button>
                                 </div>
-                            ) : (
-                                <div className="h-[22px] mb-3"></div>
-                            )}
-
-                            {/* Price Display */}
-                            <div className={`mt-auto px-6 py-2 rounded-full font-bold text-sm transition-colors w-full ${item.recommend ? 'bg-primary text-[#1a0b2e] hover:brightness-110' : 'bg-white/10 text-white group-hover:bg-white/20'}`}>
-                                {lang === 'zh' ? `¥${item.priceCn}` : `$${item.price}`}
                             </div>
-                        </button>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
             <BottomNav active="store" />
@@ -2189,6 +1853,7 @@ const App = () => {
         <LanguageContext.Provider value={{ lang, setLang, t }}>
             <Router>
                 <ScrollToTop />
+                <BackgroundMusic />
                 <Routes>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/guide" element={<QuestionGuide />} />
@@ -2201,7 +1866,6 @@ const App = () => {
                     <Route path="/profile" element={<ProfileScreen />} />
                     <Route path="/login" element={<LoginScreen />} />
                     <Route path="/settings" element={<SettingsScreen />} />
-                    <Route path="/payment/result" element={<PaymentResultScreen />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </Router>
