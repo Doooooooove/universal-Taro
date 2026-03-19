@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { HashRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
 import BackHeader from './components/BackHeader';
-import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, STORE_ITEMS, UNLOCK_THRESHOLD, ENDOWED_PROGRESS } from './constants';
+import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, UNLOCK_THRESHOLD, ENDOWED_PROGRESS, SUBSCRIPTION_PLANS, PlanType } from './constants';
 import { getDeepSeekInterpretation as getTarotInterpretation } from './services/deepseekService';
 import { SpreadType, Card, Reading, SpreadConfig } from './types';
 import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star } from 'lucide-react';
@@ -32,6 +32,15 @@ const translations: Record<Language, Record<string, string>> = {
         'store.unlocked': '全牌库已觉醒',
         'store.locked_status': '觉醒进度 {current}/{target}',
         'store.endowed': '✨ 初始星尘已注入',
+        'plan.title': '订阅计划',
+        'plan.current': '当前方案',
+        'plan.subscribe': '立即订阅',
+        'plan.current_badge': '当前',
+        'plan.recommended': '推荐',
+        'plan.free_label': '免费使用',
+        'plan.per_month': '/月',
+        'plan.manage': '管理订阅',
+        'plan.switched': '已切换方案',
         'funds.title': '能量不足',
         'funds.desc': '您的金币不足以开启本次占卜。\n请前往商店获取更多星辰能量。',
         'funds.later': '稍后再说',
@@ -132,6 +141,15 @@ const translations: Record<Language, Record<string, string>> = {
         'store.unlocked': 'Full Deck Awakened',
         'store.locked_status': 'Awakening {current}/{target}',
         'store.endowed': '✨ Ancient Stardust Infused',
+        'plan.title': 'Subscription',
+        'plan.current': 'Current Plan',
+        'plan.subscribe': 'Subscribe',
+        'plan.current_badge': 'Current',
+        'plan.recommended': 'Best Value',
+        'plan.free_label': 'Free',
+        'plan.per_month': '/mo',
+        'plan.manage': 'Manage Plan',
+        'plan.switched': 'Plan Updated',
         'funds.title': 'Low Energy',
         'funds.desc': 'Insufficient coins for this reading.\nPlease visit the store.',
         'funds.later': 'Not Now',
@@ -343,6 +361,15 @@ const getSettings = () => {
 const saveSettings = (settings: any) => {
     localStorage.setItem('user_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('settings_updated'));
+};
+
+const getUserPlan = (): PlanType => {
+    return (localStorage.getItem('user_plan') as PlanType) || 'free';
+};
+
+const setUserPlan = (plan: PlanType) => {
+    localStorage.setItem('user_plan', plan);
+    window.dispatchEvent(new Event('plan_updated'));
 };
 
 const showToast = (message: string, icon: string = 'info') => {
@@ -847,8 +874,8 @@ const HomePage = () => {
                                 <span className="text-xs font-bold">{lang === 'zh' ? 'En' : '中'}</span>
                             </button>
                             <div onClick={() => handleNavigate('/store')} className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-md border border-primary/30 shadow-[0_0_12px_rgba(244,192,37,0.15)] hover:bg-white/10 transition-colors">
-                                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span>
-                                <span className="text-xs font-medium text-white/90 tracking-wide">{t('app.balance')}: <span className="text-primary font-bold ml-0.5">{balance}</span></span>
+                                <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>{getUserPlan() === 'free' ? 'dark_mode' : getUserPlan() === 'plus' ? 'star' : 'auto_awesome'}</span>
+                                <span className="text-xs font-medium text-white/90 tracking-wide"><span className="text-primary font-bold">{getUserPlan() === 'free' ? 'Free' : getUserPlan() === 'plus' ? 'Plus' : 'Pro'}</span></span>
                             </div>
                         </div>
                     </div>
@@ -1675,7 +1702,7 @@ const ProfileScreen = () => {
             <div className="flex flex-col items-center pt-8 px-6">
                 <div className="relative mb-6"><div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div><div className="relative size-24 rounded-full bg-[#1a0b2e] border-2 border-primary/30 flex items-center justify-center overflow-hidden shadow-2xl">{auth ? <span className="text-3xl font-bold text-white bg-primary/20 size-full flex items-center justify-center">{auth.identifier.substring(0, 1).toUpperCase()}</span> : <span className="material-symbols-outlined text-4xl text-white/20">person</span>}</div></div>
                 {auth ? (
-                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0, 8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('store.current')}</span><span className="text-2xl font-bold text-primary">{balance}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('profile.recharge')}</button></div></div>
+                    <div className="text-center w-full mb-8"><div className="flex items-center justify-center gap-2 mb-1"><span className="material-symbols-outlined text-white/60 text-lg">{auth.type === 'email' ? 'mail' : 'smartphone'}</span><h2 className="text-2xl font-bold text-white">{getMaskedIdentifier()}</h2></div><p className="text-white/40 text-xs uppercase tracking-widest mb-6">ID: {auth.id.substring(0, 8)}</p><div className="glass-panel p-5 rounded-xl flex items-center justify-between mx-auto max-w-xs border-primary/20 bg-gradient-to-r from-white/5 to-transparent"><div className="flex flex-col items-start"><span className="text-xs text-[#bab29c]">{t('plan.current')}</span><span className="text-2xl font-bold text-primary">{getUserPlan() === 'free' ? 'Free' : getUserPlan() === 'plus' ? 'Plus' : 'Pro'}</span></div><button onClick={() => navigate('/store')} className="px-4 py-1.5 bg-primary/10 text-primary text-xs font-bold rounded-full border border-primary/30">{t('plan.manage')}</button></div></div>
                 ) : (
                     <div className="text-center w-full mb-8"><h2 className="text-xl font-bold text-white mb-2">Guest</h2><button onClick={() => navigate('/login')} className="mt-4 px-8 py-3 bg-white text-[#1a0b2e] font-bold rounded-full shadow-lg hover:scale-105 transition-transform">{t('profile.login')}</button></div>
                 )}
@@ -1697,132 +1724,111 @@ const ProfileScreen = () => {
 };
 
 const StoreScreen = () => {
-    const navigate = useNavigate();
     const { t, lang } = useLanguage();
-    const [balance, setBalance] = useState(getUserBalance());
-    const [totalRecharge, setTotalRecharge] = useState(getUserTotalRecharge());
-    const [showUnlockAnimation, setShowUnlockAnimation] = useState(false);
+    const [currentPlan, setCurrentPlan] = useState<PlanType>(getUserPlan());
 
     useEffect(() => {
-        const handleUpdate = () => {
-            setBalance(getUserBalance());
-            setTotalRecharge(getUserTotalRecharge());
-        };
-        window.addEventListener('balance_updated', handleUpdate);
-        return () => window.removeEventListener('balance_updated', handleUpdate);
+        const handleUpdate = () => setCurrentPlan(getUserPlan());
+        window.addEventListener('plan_updated', handleUpdate);
+        return () => window.removeEventListener('plan_updated', handleUpdate);
     }, []);
 
-    const handlePurchase = (item: any) => {
-        const currentBal = getUserBalance();
-        setUserBalance(currentBal + item.coins + item.bonus);
-
-        // Behavioral Economics: Trigger Grand Unlock if crossing threshold
-        const currentTotal = getUserTotalRecharge();
-        const rechargeValue = item.coins + item.bonus;
-
-        const newTotal = currentTotal + rechargeValue;
-
-        if (currentTotal < UNLOCK_THRESHOLD && newTotal >= UNLOCK_THRESHOLD) {
-            setShowUnlockAnimation(true);
-        }
-
-        addToTotalRecharge(rechargeValue);
-
-        showToast(t('store.success'), 'check_circle');
+    const handleSelectPlan = (planId: PlanType) => {
         triggerHaptic();
+        if (planId === currentPlan) return;
+        setUserPlan(planId);
+        showToast(t('plan.switched'), 'check_circle');
     };
-
-    const isUnlocked = totalRecharge >= UNLOCK_THRESHOLD;
-    const isEndowed = totalRecharge >= ENDOWED_PROGRESS && totalRecharge < UNLOCK_THRESHOLD && !localStorage.getItem('endowed_consumed');
-
-    const unlockTarget = UNLOCK_THRESHOLD;
-    const currentProgressDisplay = totalRecharge.toFixed(0);
 
     return (
         <div className="bg-background-dark min-h-screen pb-24 relative overflow-hidden">
-            {showUnlockAnimation && <GrandUnlockOverlay onClose={() => setShowUnlockAnimation(false)} />}
+            <div className="fixed inset-0 z-0 pointer-events-none nebula-bg"></div>
 
-            <div className="pt-12 px-6 pb-4">
-                <h1 className="text-2xl font-bold text-white mb-6">{t('store.title')}</h1>
+            <div className="relative z-10 pt-12 px-4 pb-4">
+                <h1 className="text-2xl font-bold text-white mb-2 px-2">{t('plan.title')}</h1>
+                <p className="text-white/40 text-xs px-2 mb-6">{lang === 'zh' ? '选择适合你的宇宙频率' : 'Choose your cosmic frequency'}</p>
 
-                {/* Balance Card */}
-                <div className="w-full bg-gradient-to-r from-[#f4c025] to-[#b4860b] rounded-2xl p-6 mb-4 shadow-lg relative overflow-hidden">
-                    <div className="absolute right-[-20px] top-[-20px] opacity-20">
-                        <span className="material-symbols-outlined text-[120px]">monetization_on</span>
-                    </div>
-                    <p className="text-[#1a0b2e]/70 font-bold text-sm mb-1">{t('store.current')}</p>
-                    <h2 className="text-[#1a0b2e] text-4xl font-bold">{balance}</h2>
-                </div>
+                <div className="flex flex-col gap-4">
+                    {SUBSCRIPTION_PLANS.map((plan) => {
+                        const isCurrent = plan.id === currentPlan;
+                        const isRecommended = plan.recommended;
 
-                {/* BEHAVIORAL: Goal Gradient Progress Card */}
-                <div className={`w-full rounded-2xl p-6 mb-8 relative overflow-hidden border transition-all duration-500 ${isUnlocked ? 'bg-gradient-to-br from-[#2e1065] to-[#0f0518] border-primary/50 shadow-[0_0_20px_rgba(244,192,37,0.2)]' : 'glass-panel border-white/10'}`}>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div>
-                            <h3 className={`font-bold text-lg ${isUnlocked ? 'text-primary' : 'text-white'}`}>{t('store.unlock_title')}</h3>
-                            <p className="text-xs text-white/50">{t('store.unlock_desc')}</p>
-                        </div>
-                        <div className={`size-10 rounded-full flex items-center justify-center transition-colors duration-500 ${isUnlocked ? 'bg-primary text-[#1a0b2e]' : 'bg-white/10 text-white/30'}`}>
-                            <span className="material-symbols-outlined">{isUnlocked ? 'lock_open' : 'lock'}</span>
-                        </div>
-                    </div>
-
-                    {isUnlocked ? (
-                        <div className="relative z-10 animate-fade-in">
-                            <p className="text-primary font-bold text-sm flex items-center gap-2">
-                                <span className="material-symbols-outlined text-sm">verified</span>
-                                {t('store.unlocked')}
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="relative z-10">
-                            <div className="flex justify-between text-xs text-white/70 mb-2">
-                                <span>{t('store.locked_status').replace('{current}', `${currentProgressDisplay}`).replace('{target}', `${unlockTarget}`)}</span>
-                            </div>
-
-                            {/* The Nebula Progress Bar */}
-                            <NebulaProgress current={totalRecharge} target={UNLOCK_THRESHOLD} isEndowed={true} />
-
-                            {/* Endowed Progress Feedback */}
-                            {isEndowed && (
-                                <p className="text-[10px] text-primary/80 mt-2 flex items-center gap-1 animate-pulse">
-                                    <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
-                                    {t('store.endowed')}
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Decorative Background */}
-                    <div className="absolute -bottom-4 -right-4 opacity-10 rotate-12">
-                        <span className="material-symbols-outlined text-8xl">style</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    {STORE_ITEMS.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => handlePurchase(item)}
-                            className="glass-panel p-4 rounded-xl flex flex-col items-center relative group overflow-hidden border border-white/10 hover:border-primary/50 transition-all"
-                        >
-                            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
-                            <span
-                                className="material-symbols-outlined text-4xl text-primary mb-2 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)] group-hover:scale-110 transition-transform duration-300"
-                                style={{ fontVariationSettings: "'FILL' 1" }}
+                        return (
+                            <div
+                                key={plan.id}
+                                className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
+                                    isRecommended
+                                        ? 'border-2 border-primary shadow-[0_0_30px_rgba(244,192,37,0.15)]'
+                                        : 'border border-white/10'
+                                } ${isCurrent ? 'bg-white/[0.08]' : 'bg-white/[0.03]'}`}
                             >
-                                monetization_on
-                            </span>
+                                {/* Recommended badge */}
+                                {isRecommended && (
+                                    <div className="absolute top-0 right-0 bg-gradient-to-l from-primary to-[#eab308] text-[#1a0b2e] text-[10px] font-bold px-3 py-1 rounded-bl-xl tracking-wider uppercase">
+                                        {t('plan.recommended')}
+                                    </div>
+                                )}
 
-                            <div className="text-white font-bold text-lg">{item.coins} <span className="text-xs font-normal">{t('store.coins')}</span></div>
-                            {item.bonus > 0 && <div className="text-green-400 text-xs font-bold mb-2">+{item.bonus} {t('store.gift')}</div>}
+                                <div className="p-5">
+                                    {/* Header */}
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className={`size-10 rounded-full flex items-center justify-center ${
+                                            isRecommended ? 'bg-primary/20' : 'bg-white/10'
+                                        }`}>
+                                            <span
+                                                className={`material-symbols-outlined text-xl ${isRecommended ? 'text-primary' : 'text-white/60'}`}
+                                                style={{ fontVariationSettings: "'FILL' 1" }}
+                                            >
+                                                {plan.icon}
+                                            </span>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-lg font-bold text-white">{lang === 'zh' ? plan.nameCn : plan.name}</h3>
+                                                {isCurrent && (
+                                                    <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-bold border border-primary/30">
+                                                        {t('plan.current_badge')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-white/50 text-sm font-bold">
+                                                {plan.priceCn === 0 ? (
+                                                    t('plan.free_label')
+                                                ) : (
+                                                    <>{lang === 'zh' ? `¥${plan.priceCn}` : `$${plan.price}`}<span className="text-white/30 font-normal text-xs">{t('plan.per_month')}</span></>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                            {/* Price Display */}
-                            <div className="mt-auto px-4 py-1.5 bg-white/10 rounded-full text-white font-bold text-sm group-hover:bg-primary group-hover:text-background-dark transition-colors">
-                                {lang === 'zh' ? `¥${item.priceCn}` : `$${item.price}`}
+                                    {/* Features */}
+                                    <div className="flex flex-col gap-2 mb-5">
+                                        {plan.features.map((feat) => (
+                                            <div key={feat.key} className="flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                                                <span className="text-white/70 text-xs">{lang === 'zh' ? feat.zh : feat.en}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Action button */}
+                                    <button
+                                        onClick={() => handleSelectPlan(plan.id)}
+                                        disabled={isCurrent}
+                                        className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] ${
+                                            isCurrent
+                                                ? 'bg-white/5 text-white/30 cursor-default border border-white/10'
+                                                : isRecommended
+                                                    ? 'bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110'
+                                                    : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
+                                        }`}
+                                    >
+                                        {isCurrent ? t('plan.current_badge') : t('plan.subscribe')}
+                                    </button>
+                                </div>
                             </div>
-                        </button>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
             <BottomNav active="store" />

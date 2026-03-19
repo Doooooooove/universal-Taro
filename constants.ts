@@ -78,15 +78,69 @@ export const MOCK_CARDS: Omit<Card, 'isUpright'>[] = [
 
 export const CARD_BACK_IMAGE = "https://lh3.googleusercontent.com/aida-public/AB6AXuDisTMVHQLEYtDKUnarvB8MycahwcwwTsUokbXJCGpGzN5azWyjqcR-TUH_VxA236cDNbrdzNykSAsZzbIfGYcbZqcj910wkinDc4ePuVOdm7_d7HoyZ2JkbW0m13rM-cc8DkMxDTUXBUpWFNF26hOuRZ5rGqoICxk-Jo77kYoAPoXE-9c31JshEagBeocyyzvlfhN4zUw2G3vCH8NNpKgb0G4DD5U5EikqClhNMAYDt6Hu5_LKtP2dV1RaTQKu6xH5GqPXZJcBJUMM";
 
-// Store Items: Adjusted to match user-provided pricing table
-// Base rate approx 10 coins / ¥1
-// Tier 1: ¥6 -> 60 (Base 60, Bonus 0)
-// Tier 2: ¥38 -> 400 (Base 380, Bonus 20)
-// Tier 3: ¥88 -> 980 (Base 880, Bonus 100)
-// Tier 4: ¥128 -> 1500 (Base 1280, Bonus 220)
-export const STORE_ITEMS = [
-  { id: '1', name: 'Stardust', nameCn: '星尘', coins: 60, bonus: 0, price: 0.99, priceCn: 6, recommend: false },
-  { id: '2', name: 'Comet', nameCn: '彗星', coins: 380, bonus: 20, price: 5.99, priceCn: 38, recommend: false },
-  { id: '3', name: 'Nebula', nameCn: '星云', coins: 880, bonus: 100, price: 12.99, priceCn: 88, recommend: false },
-  { id: '4', name: 'Galaxy', nameCn: '星系', coins: 1280, bonus: 220, price: 19.99, priceCn: 128, recommend: false },
+// Subscription Plans
+export type PlanType = 'free' | 'plus' | 'pro';
+
+export interface SubscriptionPlan {
+  id: PlanType;
+  name: string;
+  nameCn: string;
+  price: number;       // USD monthly
+  priceCn: number;     // CNY monthly
+  icon: string;        // material icon
+  recommended: boolean;
+  features: { key: string; zh: string; en: string }[];
+}
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'free',
+    name: 'Free',
+    nameCn: '星尘',
+    price: 0,
+    priceCn: 0,
+    icon: 'dark_mode',
+    recommended: false,
+    features: [
+      { key: 'daily', zh: '每日指引 1次/天', en: 'Daily Guidance 1x/day' },
+      { key: 'ai', zh: '基础 AI 解读', en: 'Basic AI Reading' },
+      { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
+      { key: 'bonus', zh: '每日 10 金币', en: '10 Coins Daily' },
+    ],
+  },
+  {
+    id: 'plus',
+    name: 'Plus',
+    nameCn: '星辰',
+    price: 2.49,
+    priceCn: 14.9,
+    icon: 'star',
+    recommended: true,
+    features: [
+      { key: 'daily', zh: '每日指引 无限', en: 'Unlimited Daily Guidance' },
+      { key: 'three', zh: '三张牌阵 5次/天', en: 'Three Card 5x/day' },
+      { key: 'minor', zh: '小阿卡纳全牌库', en: 'Full Minor Arcana' },
+      { key: 'ai', zh: '深度 AI 解读', en: 'Deep AI Reading' },
+      { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
+      { key: 'bonus', zh: '每日 30 金币', en: '30 Coins Daily' },
+    ],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    nameCn: '星系',
+    price: 4.99,
+    priceCn: 29.9,
+    icon: 'auto_awesome',
+    recommended: false,
+    features: [
+      { key: 'daily', zh: '每日指引 无限', en: 'Unlimited Daily Guidance' },
+      { key: 'three', zh: '三张牌阵 无限', en: 'Unlimited Three Card' },
+      { key: 'hex', zh: '六芒星阵 3次/天', en: 'Hexagram 3x/day' },
+      { key: 'minor', zh: '小阿卡纳全牌库', en: 'Full Minor Arcana' },
+      { key: 'ai', zh: '大师级 AI 解读', en: 'Master AI Reading' },
+      { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
+      { key: 'bonus', zh: '每日 60 金币', en: '60 Coins Daily' },
+    ],
+  },
 ];
