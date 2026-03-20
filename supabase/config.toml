@@ -393,3 +393,12 @@ entrypoint = "./functions/tarot-interpret/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/tarot-interpret/*.html" ]
+
+[functions.create-intent]
+verify_jwt = false
+
+[functions.afdian-verify]
+verify_jwt = false
+
+[functions.afdian-webhook]
+verify_jwt = false
