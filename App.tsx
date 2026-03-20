@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { HashRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import BottomNav from './components/BottomNav';
 import BackHeader from './components/BackHeader';
-import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, UNLOCK_THRESHOLD, ENDOWED_PROGRESS, SUBSCRIPTION_PLANS, PlanType } from './constants';
+import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, UNLOCK_THRESHOLD, ENDOWED_PROGRESS, SUBSCRIPTION_PLANS, PlanType, AFDIAN_SPONSOR_URL } from './constants';
+import { createSubscriptionIntent, verifySubscription, getSubscriptionStatus } from './services/subscriptionService';
 import { getDeepSeekInterpretation as getTarotInterpretation } from './services/deepseekService';
 import { SpreadType, Card, Reading, SpreadConfig } from './types';
 import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star } from 'lucide-react';
@@ -41,6 +42,13 @@ const translations: Record<Language, Record<string, string>> = {
         'plan.per_month': '/月',
         'plan.manage': '管理订阅',
         'plan.switched': '已切换方案',
+        'plan.verify': '我已付款，点击验证',
+        'plan.verifying': '正在验证...',
+        'plan.verify_success': '订阅已激活！',
+        'plan.verify_fail': '未找到支付记录，请稍后重试',
+        'plan.redirecting': '正在跳转爱发电...',
+        'plan.expires': '到期时间',
+        'plan.login_required': '请先登录后再订阅',
         'funds.title': '能量不足',
         'funds.desc': '您的金币不足以开启本次占卜。\n请前往商店获取更多星辰能量。',
         'funds.later': '稍后再说',
@@ -150,6 +158,13 @@ const translations: Record<Language, Record<string, string>> = {
         'plan.per_month': '/mo',
         'plan.manage': 'Manage Plan',
         'plan.switched': 'Plan Updated',
+        'plan.verify': 'I\'ve Paid, Verify Now',
+        'plan.verifying': 'Verifying...',
+        'plan.verify_success': 'Subscription Activated!',
+        'plan.verify_fail': 'Payment not found, please try later',
+        'plan.redirecting': 'Redirecting to Afdian...',
+        'plan.expires': 'Expires',
+        'plan.login_required': 'Please login first',
         'funds.title': 'Low Energy',
         'funds.desc': 'Insufficient coins for this reading.\nPlease visit the store.',
         'funds.later': 'Not Now',
@@ -1725,19 +1740,76 @@ const ProfileScreen = () => {
 
 const StoreScreen = () => {
     const { t, lang } = useLanguage();
+    const navigate = useNavigate();
     const [currentPlan, setCurrentPlan] = useState<PlanType>(getUserPlan());
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
+    // 加载远程订阅状态
     useEffect(() => {
+        const loadStatus = async () => {
+            const status = await getSubscriptionStatus();
+            if (status.plan_type !== 'free') {
+                setCurrentPlan(status.plan_type as PlanType);
+                setUserPlan(status.plan_type as PlanType);
+                if (status.expires_at) {
+                    setExpiresAt(new Date(status.expires_at).toLocaleDateString());
+                }
+            }
+        };
+        loadStatus();
+
         const handleUpdate = () => setCurrentPlan(getUserPlan());
         window.addEventListener('plan_updated', handleUpdate);
         return () => window.removeEventListener('plan_updated', handleUpdate);
     }, []);
 
-    const handleSelectPlan = (planId: PlanType) => {
+    // 点击订阅 → 创建 intent → 跳转爱发电
+    const handleSubscribe = async (planId: PlanType) => {
         triggerHaptic();
-        if (planId === currentPlan) return;
-        setUserPlan(planId);
-        showToast(t('plan.switched'), 'check_circle');
+        if (planId === currentPlan || planId === 'free') return;
+
+        // 检查登录
+        const auth = getAuth();
+        if (!auth) {
+            showToast(t('plan.login_required'), 'lock');
+            navigate('/login');
+            return;
+        }
+
+        setIsRedirecting(true);
+        const result = await createSubscriptionIntent(planId as 'plus' | 'pro');
+
+        if (result.success && result.payUrl) {
+            // 打开爱发电支付页
+            window.open(result.payUrl, '_blank');
+            showToast(lang === 'zh' ? '请在爱发电完成支付' : 'Complete payment on Afdian', 'open_in_new');
+        } else {
+            showToast(result.error || 'Error', 'error');
+        }
+        setIsRedirecting(false);
+    };
+
+    // 点击"我已付款" → 验证订阅
+    const handleVerify = async () => {
+        triggerHaptic();
+        setIsVerifying(true);
+
+        const result = await verifySubscription();
+
+        if (result.matched && result.subscription.plan_type !== 'free') {
+            setCurrentPlan(result.subscription.plan_type as PlanType);
+            setUserPlan(result.subscription.plan_type as PlanType);
+            if (result.subscription.expires_at) {
+                setExpiresAt(new Date(result.subscription.expires_at).toLocaleDateString());
+            }
+            showToast(t('plan.verify_success'), 'check_circle');
+        } else {
+            showToast(t('plan.verify_fail'), 'info');
+        }
+
+        setIsVerifying(false);
     };
 
     return (
@@ -1746,12 +1818,32 @@ const StoreScreen = () => {
 
             <div className="relative z-10 pt-12 px-4 pb-4">
                 <h1 className="text-2xl font-bold text-white mb-2 px-2">{t('plan.title')}</h1>
-                <p className="text-white/40 text-xs px-2 mb-6">{lang === 'zh' ? '选择适合你的宇宙频率' : 'Choose your cosmic frequency'}</p>
+                <p className="text-white/40 text-xs px-2 mb-4">{lang === 'zh' ? '选择适合你的宇宙频率' : 'Choose your cosmic frequency'}</p>
+
+                {/* 验证付款按钮 */}
+                <button
+                    onClick={handleVerify}
+                    disabled={isVerifying}
+                    className="w-full mb-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] bg-gradient-to-r from-green-600/20 to-emerald-600/20 text-green-400 border border-green-500/30 hover:border-green-500/50 flex items-center justify-center gap-2"
+                >
+                    <span className={`material-symbols-outlined text-lg ${isVerifying ? 'animate-spin' : ''}`}>
+                        {isVerifying ? 'progress_activity' : 'verified'}
+                    </span>
+                    {isVerifying ? t('plan.verifying') : t('plan.verify')}
+                </button>
+
+                {/* 当前订阅到期时间 */}
+                {expiresAt && currentPlan !== 'free' && (
+                    <div className="mb-4 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20 text-center">
+                        <span className="text-primary text-xs font-medium">{t('plan.expires')}: {expiresAt}</span>
+                    </div>
+                )}
 
                 <div className="flex flex-col gap-4">
                     {SUBSCRIPTION_PLANS.map((plan) => {
                         const isCurrent = plan.id === currentPlan;
                         const isRecommended = plan.recommended;
+                        const isFree = plan.id === 'free';
 
                         return (
                             <div
@@ -1762,7 +1854,6 @@ const StoreScreen = () => {
                                         : 'border border-white/10'
                                 } ${isCurrent ? 'bg-white/[0.08]' : 'bg-white/[0.03]'}`}
                             >
-                                {/* Recommended badge */}
                                 {isRecommended && (
                                     <div className="absolute top-0 right-0 bg-gradient-to-l from-primary to-[#eab308] text-[#1a0b2e] text-[10px] font-bold px-3 py-1 rounded-bl-xl tracking-wider uppercase">
                                         {t('plan.recommended')}
@@ -1770,7 +1861,6 @@ const StoreScreen = () => {
                                 )}
 
                                 <div className="p-5">
-                                    {/* Header */}
                                     <div className="flex items-center gap-3 mb-4">
                                         <div className={`size-10 rounded-full flex items-center justify-center ${
                                             isRecommended ? 'bg-primary/20' : 'bg-white/10'
@@ -1801,7 +1891,6 @@ const StoreScreen = () => {
                                         </div>
                                     </div>
 
-                                    {/* Features */}
                                     <div className="flex flex-col gap-2 mb-5">
                                         {plan.features.map((feat) => (
                                             <div key={feat.key} className="flex items-center gap-2">
@@ -1811,24 +1900,41 @@ const StoreScreen = () => {
                                         ))}
                                     </div>
 
-                                    {/* Action button */}
                                     <button
-                                        onClick={() => handleSelectPlan(plan.id)}
-                                        disabled={isCurrent}
+                                        onClick={() => isFree ? null : handleSubscribe(plan.id)}
+                                        disabled={isCurrent || isFree || isRedirecting}
                                         className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-[0.98] ${
-                                            isCurrent
+                                            isCurrent || isFree
                                                 ? 'bg-white/5 text-white/30 cursor-default border border-white/10'
                                                 : isRecommended
                                                     ? 'bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110'
                                                     : 'bg-white/10 text-white hover:bg-white/15 border border-white/10'
                                         }`}
                                     >
-                                        {isCurrent ? t('plan.current_badge') : t('plan.subscribe')}
+                                        {isCurrent ? t('plan.current_badge') : isFree ? t('plan.free_label') : (
+                                            <span className="flex items-center justify-center gap-1">
+                                                <span className="material-symbols-outlined text-base">open_in_new</span>
+                                                {isRedirecting ? t('plan.redirecting') : t('plan.subscribe')}
+                                            </span>
+                                        )}
                                     </button>
                                 </div>
                             </div>
                         );
                     })}
+                </div>
+
+                {/* 爱发电链接 */}
+                <div className="mt-6 text-center">
+                    <a
+                        href={AFDIAN_SPONSOR_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-white/30 text-xs hover:text-white/50 transition-colors flex items-center justify-center gap-1"
+                    >
+                        <span className="material-symbols-outlined text-sm">favorite</span>
+                        {lang === 'zh' ? '通过爱发电赞助我们' : 'Sponsor us on Afdian'}
+                    </a>
                 </div>
             </div>
             <BottomNav active="store" />

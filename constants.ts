@@ -89,8 +89,11 @@ export interface SubscriptionPlan {
   priceCn: number;     // CNY monthly
   icon: string;        // material icon
   recommended: boolean;
+  afdianPlanId?: string; // 爱发电方案 ID
   features: { key: string; zh: string; en: string }[];
 }
+
+export const AFDIAN_SPONSOR_URL = 'https://afdian.com/a/dove0001';
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -116,6 +119,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     priceCn: 14.9,
     icon: 'star',
     recommended: true,
+    afdianPlanId: '86c452fa1bc611f1a5365254001e7c00',
     features: [
       { key: 'daily', zh: '每日指引 无限', en: 'Unlimited Daily Guidance' },
       { key: 'three', zh: '三张牌阵 5次/天', en: 'Three Card 5x/day' },
@@ -133,6 +137,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     priceCn: 29.9,
     icon: 'auto_awesome',
     recommended: false,
+    afdianPlanId: 'e6afd64e1d4d11f187f452540025c377',
     features: [
       { key: 'daily', zh: '每日指引 无限', en: 'Unlimited Daily Guidance' },
       { key: 'three', zh: '三张牌阵 无限', en: 'Unlimited Three Card' },
