@@ -119,7 +119,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     priceCn: 14.9,
     icon: 'star',
     recommended: true,
-    afdianPlanId: '86c452fa1bc611f1a5365254001e7c00',
+    afdianPlanId: '86c452fa1bc711f1a5365254001e7c00',
     features: [
       { key: 'daily', zh: '每日指引 无限', en: 'Unlimited Daily Guidance' },
       { key: 'three', zh: '三张牌阵 5次/天', en: 'Three Card 5x/day' },

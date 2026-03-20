@@ -14,7 +14,7 @@ const corsHeaders = {
 
 // plan_id 映射
 const PLAN_MAP: Record<string, { planId: string; planType: string }> = {
-  plus: { planId: "86c452fa1bc611f1a5365254001e7c00", planType: "plus" },
+  plus: { planId: "86c452fa1bc711f1a5365254001e7c00", planType: "plus" },
   pro: { planId: "e6afd64e1d4d11f187f452540025c377", planType: "pro" },
 };
 

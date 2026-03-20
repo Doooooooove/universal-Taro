@@ -19,7 +19,7 @@ const corsHeaders = {
 // plan_id → plan_type
 function getPlanType(planId: string): string | null {
   const planMap: Record<string, string> = {
-    "86c452fa1bc611f1a5365254001e7c00": "plus",
+    "86c452fa1bc711f1a5365254001e7c00": "plus",
     "e6afd64e1d4d11f187f452540025c377": "pro",
   };
   return planMap[planId] || null;
