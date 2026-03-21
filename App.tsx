@@ -1778,14 +1778,22 @@ const StoreScreen = () => {
             return;
         }
 
+        // 提前同步打开新窗口，规避 Safari 等浏览器的异步弹窗拦截机制
+        const payWindow = window.open('about:blank', '_blank');
+
         setIsRedirecting(true);
         const result = await createSubscriptionIntent(planId as 'plus' | 'pro');
 
         if (result.success && result.payUrl) {
-            // 打开爱发电支付页
-            window.open(result.payUrl, '_blank');
+            // 重定向已打开的窗口到支付页
+            if (payWindow) {
+                payWindow.location.href = result.payUrl;
+            } else {
+                window.location.href = result.payUrl; // 兜底：如果还是被拦截，直接在当前窗口跳转
+            }
             showToast(lang === 'zh' ? '请在爱发电完成支付' : 'Complete payment on Afdian', 'open_in_new');
         } else {
+            if (payWindow) payWindow.close();
             showToast(result.error || 'Error', 'error');
         }
         setIsRedirecting(false);
@@ -1798,7 +1806,8 @@ const StoreScreen = () => {
 
         const result = await verifySubscription();
 
-        if (result.matched && result.subscription.plan_type !== 'free') {
+        // 只要能查到有效订阅（不管是不是刚才 webhook 提前跑完造成的），都视为验证成功
+        if (result.subscription && result.subscription.plan_type !== 'free') {
             setCurrentPlan(result.subscription.plan_type as PlanType);
             setUserPlan(result.subscription.plan_type as PlanType);
             if (result.subscription.expires_at) {
