@@ -13,13 +13,13 @@ const corsHeaders = {
 const SILICONFLOW_API_KEY = Deno.env.get('SILICONFLOW_API_KEY') || ''
 const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
 
-// 按牌阵选择模型
-const MODEL_MAP: Record<string, string> = {
-  daily: 'Qwen/Qwen3-8B',
-  three_card: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
-  hexagram: 'deepseek-ai/DeepSeek-V3',
+// 按订阅等级选择模型
+const PLAN_MODEL_MAP: Record<string, string> = {
+  free: 'Qwen/Qwen3-8B',
+  plus: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
+  pro: 'deepseek-ai/DeepSeek-V3',
 }
-const DEFAULT_MODEL = 'deepseek-ai/DeepSeek-V3'
+const DEFAULT_MODEL = 'Qwen/Qwen3-8B'
 
 const SYSTEM_PROMPT = `你是一位经验丰富、洞察人心的塔罗占卜师。你不做绝对判断，也不预测具体事件的发生时间，而是通过牌的象征意义，引导提问者理解当下的状态、内在的情绪，以及可能的发展方向。
 
@@ -105,9 +105,29 @@ serve(async (req) => {
       )
     }
 
-    // 根据牌阵选择模型
-    const modelName = MODEL_MAP[spreadId] || DEFAULT_MODEL
-    console.log(`Using model: ${modelName} for spread: ${spreadId}`)
+    // 获取用户订阅状态来决定模型
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+    
+    let planType = 'free'
+    try {
+      const { data: sub } = await supabaseAdmin
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single()
+
+      if (sub && sub.expires_at && new Date(sub.expires_at) > new Date()) {
+        planType = sub.plan_type || 'free'
+      }
+    } catch (e) {
+      console.warn('Failed to fetch subscription, defaulting to free', e)
+    }
+
+    const modelName = PLAN_MODEL_MAP[planType] || DEFAULT_MODEL
+    console.log(`User ${user.id} has plan ${planType}, using model: ${modelName} for spread: ${spreadId}`)
 
     // 构建 prompt
     let prompt = `请为用户解读以下牌阵。\n\n`
