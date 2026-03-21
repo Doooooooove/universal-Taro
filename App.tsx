@@ -50,8 +50,8 @@ const translations: Record<Language, Record<string, string>> = {
         'plan.redirecting': '正在跳转爱发电...',
         'plan.expires': '到期时间',
         'plan.login_required': '请先登录后再订阅',
-        'funds.title': '能量不足',
-        'funds.desc': '您的金币不足以开启本次占卜。\n请前往商店获取更多星辰能量。',
+        'funds.title': '方案等级不足',
+        'funds.desc': '当前方案不支持使用此高级牌阵。\n请前往商店升级您的星辰方案。',
         'funds.later': '稍后再说',
         'funds.recharge': '前往充值',
         'guide.title': '提问引导',
@@ -166,8 +166,8 @@ const translations: Record<Language, Record<string, string>> = {
         'plan.redirecting': 'Redirecting to Afdian...',
         'plan.expires': 'Expires',
         'plan.login_required': 'Please login first',
-        'funds.title': 'Low Energy',
-        'funds.desc': 'Insufficient coins for this reading.\nPlease visit the store.',
+        'funds.title': 'Plan Upgrade Required',
+        'funds.desc': 'This spread is not available on your current plan.\nPlease visit the store to upgrade.',
         'funds.later': 'Not Now',
         'funds.recharge': 'Recharge',
         'guide.title': 'Focus Energy',
@@ -960,10 +960,13 @@ const QuestionGuide = () => {
         triggerHaptic();
         if (!spread) return;
 
-        const currentBalance = getUserBalance();
-        let actualCost = spread.cost;
+        const plan = getUserPlan();
 
-        if (currentBalance < actualCost) {
+        if (spreadId === 'hexagram' && plan !== 'pro') {
+            setShowNoFundsModal(true);
+            return;
+        }
+        if (spreadId === 'three_card' && plan === 'free') {
             setShowNoFundsModal(true);
             return;
         }
