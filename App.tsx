@@ -1341,8 +1341,18 @@ const ReadingScreen = () => {
             const fetchInterpretation = async () => {
                 const sName = lang === 'zh' ? spread.name : spread.nameEn;
                 const sPos = lang === 'zh' ? spread.positions : spread.positionsEn;
-                const text = await getTarotInterpretation(spreadId, sName, question, cards, sPos, lang);
-                setInterpretation(text);
+                try {
+                    const text = await getTarotInterpretation(spreadId, sName, question, cards, sPos, lang);
+                    setInterpretation(text);
+                } catch (error: any) {
+                    if (error.message === 'RATE_LIMIT') {
+                        setInterpretation(lang === 'zh' ? '【今日占卜次数已耗尽】\n请前往商店升级星辰方案，或明日再来探索命运的指引。' : '[Daily usage limit exceeded]\nPlease upgrade your plan or try again tomorrow.');
+                    } else if (error.message === 'UPGRADE_REQUIRED') {
+                        setInterpretation(lang === 'zh' ? '【当前方案等级不足】\n此高级牌阵需要更强大的星辰能量，请前往商店升级您的方案。' : '[Plan upgrade required]\nThis advanced spread requires a higher tier plan. Please visit the store to upgrade.');
+                    } else {
+                        setInterpretation(lang === 'zh' ? '【星辰连接受阻】\n宇宙能量暂时无法触达，请稍后重试。' : '[Connection interrupted]\nThe cosmic energy is currently unreachable. Please try again later.');
+                    }
+                }
                 setLoading(false);
             };
             fetchInterpretation();

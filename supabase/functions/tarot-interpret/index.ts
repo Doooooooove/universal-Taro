@@ -129,6 +129,41 @@ serve(async (req) => {
     const modelName = PLAN_MODEL_MAP[planType] || DEFAULT_MODEL
     console.log(`User ${user.id} has plan ${planType}, using model: ${modelName} for spread: ${spreadId}`)
 
+    // 1. 越权阻断 (Tier Blocking)
+    if (spreadId === 'hexagram' && planType !== 'pro') {
+      return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+    if (spreadId === 'three_card' && planType === 'free') {
+      return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // 2. 次数防刷 (Rate Limiting)
+    let limit = 0
+    if (spreadId === 'daily') {
+      limit = planType === 'free' ? 1 : -1
+    } else if (spreadId === 'three_card') {
+      limit = planType === 'plus' ? 5 : planType === 'pro' ? -1 : 0
+    } else if (spreadId === 'hexagram') {
+      limit = planType === 'pro' ? 3 : 0
+    }
+
+    if (limit > 0) {
+      // 查询今日已用次数 (UTC时间)
+      const startOfDay = new Date()
+      startOfDay.setUTCHours(0, 0, 0, 0)
+      
+      const { count, error: countError } = await supabaseAdmin
+        .from('ai_usage_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('spread_id', spreadId)
+        .gte('created_at', startOfDay.toISOString())
+
+      if (!countError && count !== null && count >= limit) {
+        return new Response(JSON.stringify({ error: 'RATE_LIMIT_EXCEEDED' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
+
     // 构建 prompt
     let prompt = `请为用户解读以下牌阵。\n\n`
     prompt += `语言要求: ${lang === 'zh' ? '中文(简体)' : 'English'}。你必须用${lang === 'zh' ? '中文' : '英文'}回复。\n`
@@ -182,6 +217,11 @@ serve(async (req) => {
     const aiData = await aiResponse.json()
     
     if (aiData.choices && aiData.choices[0] && aiData.choices[0].message) {
+      // 3. 记录流水 (Usage Logging) - 异步存入数据库，不阻塞返回
+      supabaseAdmin.from('ai_usage_logs').insert({ user_id: user.id, spread_id: spreadId }).then(({ error }) => {
+        if (error) console.error('Failed to log AI usage:', error)
+      })
+
       return new Response(
         JSON.stringify({ interpretation: aiData.choices[0].message.content }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

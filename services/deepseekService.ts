@@ -40,6 +40,12 @@ export const getDeepSeekInterpretation = async (
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error("Edge Function Error:", response.status, errorData);
+            if (response.status === 429) {
+                throw new Error("RATE_LIMIT");
+            }
+            if (response.status === 403) {
+                throw new Error("UPGRADE_REQUIRED");
+            }
             throw new Error(`API Error: ${response.status}`);
         }
 
@@ -51,8 +57,13 @@ export const getDeepSeekInterpretation = async (
         
         throw new Error(data.error || "No interpretation in response");
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("AI Interpretation Error:", error);
+        
+        if (error.message === "RATE_LIMIT" || error.message === "UPGRADE_REQUIRED") {
+            throw error; // Let the UI handle these gracefully and deny mock readings
+        }
+
         const errorNote = lang === 'zh' ? "星辰连接受阻，启用应急预言" : "Connection interrupted, using backup oracle";
         return generateMockReading(spreadName, question, cards, positions, lang, errorNote);
     }
