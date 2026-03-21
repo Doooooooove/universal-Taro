@@ -1737,7 +1737,6 @@ const ProfileScreen = () => {
 
     const toggleSetting = (key: string) => { const newSettings = { ...settings, [key]: !settings[key] }; setSettings(newSettings); saveSettings(newSettings); triggerHaptic(); };
     const handleLogout = async () => { if (window.confirm(t('profile.logout_confirm'))) { await signOut(); clearAuth(); showToast(t('toast.logout'), 'logout'); } };
-    const handleDeleteAccount = () => { if (window.confirm(t('profile.delete_confirm'))) { clearAuth(); localStorage.clear(); window.location.reload(); } };
     const getMaskedIdentifier = () => { if (!auth) return ''; if (auth.type === 'email') { const [name, domain] = auth.identifier.split('@'); return `${name.substring(0, 1)}***@${domain}`; } return auth.identifier.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'); };
 
     return (
@@ -1761,7 +1760,7 @@ const ProfileScreen = () => {
                     </div>
                     <button onClick={() => setShowContact(true)} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-400"><span className="material-symbols-outlined text-lg">support_agent</span></div><span className="text-white text-sm">{t('profile.contact')}</span></div><span className="material-symbols-outlined text-white/20 group-hover:text-white/60 text-lg">chevron_right</span></button>
                     <button onClick={() => setTermsOpen(true)} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all"><div className="flex items-center gap-3"><div className="size-8 rounded-full bg-white/10 flex items-center justify-center text-white/70"><span className="material-symbols-outlined text-lg">description</span></div><span className="text-white/80 text-sm">{t('login.terms')} & {t('login.privacy')}</span></div><span className="material-symbols-outlined text-white/30">chevron_right</span></button>
-                    {auth && (<><button onClick={handleLogout} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all mt-4"><span className="text-white/80 text-sm pl-2">{t('profile.logout')}</span><span className="material-symbols-outlined text-white/20 text-lg">logout</span></button><button onClick={handleDeleteAccount} className="p-4 rounded-xl flex justify-center items-center hover:bg-red-500/10 transition-all mt-1"><span className="text-red-500/60 text-xs">{t('profile.delete')}</span></button></>)}
+                    {auth && (<button onClick={handleLogout} className="glass-panel p-4 rounded-xl flex justify-between items-center hover:bg-white/5 group transition-all mt-4"><span className="text-white/80 text-sm pl-2">{t('profile.logout')}</span><span className="material-symbols-outlined text-white/20 text-lg">logout</span></button>)}
                 </div>
             </div>
             <BottomNav active="profile" />
