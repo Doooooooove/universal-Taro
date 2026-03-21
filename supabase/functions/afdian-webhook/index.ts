@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import md5 from "https://esm.sh/blueimp-md5";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,12 @@ function getPlanType(planId: string): string | null {
     "e6afd64e1d4d11f187f452540025c377": "pro",
   };
   return planMap[planId] || null;
+}
+
+// 生成爱发电 API 签名验证 Webhook 真实性
+function generateAfdianSign(token: string, params: string, ts: number, userId: string): string {
+  const raw = `${token}params${params}ts${ts}user_id${userId}`;
+  return md5(raw);
 }
 
 serve(async (req) => {
@@ -59,6 +66,30 @@ serve(async (req) => {
         JSON.stringify({ ec: 200 }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // 防止黑客伪造 Webhook，主动调用 API 校验该订单真实性
+    const afdianToken = Deno.env.get("AFDIAN_TOKEN");
+    const afdianUserId = Deno.env.get("AFDIAN_USER_ID");
+
+    if (afdianToken && afdianUserId) {
+      const ts = Math.floor(Date.now() / 1000);
+      const params = JSON.stringify({ out_trade_no: order.out_trade_no });
+      const sign = generateAfdianSign(afdianToken, params, ts, afdianUserId);
+
+      const apiResponse = await fetch("https://afdian.com/api/open/query-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: afdianUserId, params, ts, sign }),
+      });
+
+      const apiResult = await apiResponse.json();
+      const realOrder = apiResult?.data?.list?.[0];
+
+      if (!realOrder || realOrder.status !== 2) {
+        console.warn("Security Alert: Forged webhook rejected for out_trade_no:", order.out_trade_no);
+        return new Response(JSON.stringify({ ec: 200 }), { headers: corsHeaders });
+      }
     }
 
     // 初始化 Supabase（使用 service_role 绕过 RLS）

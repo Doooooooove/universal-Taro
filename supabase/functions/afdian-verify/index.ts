@@ -205,7 +205,7 @@ serve(async (req) => {
                     status: order.status,
                     raw_data: order,
                   },
-                  { onConflict: "out_trade_no" }
+                  { onConflict: "out_trade_no", ignoreDuplicates: true }
                 );
             }
 
