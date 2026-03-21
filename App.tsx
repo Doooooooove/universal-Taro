@@ -264,8 +264,7 @@ const LanguageContext = createContext<LanguageContextType>({
 const useLanguage = () => useContext(LanguageContext);
 
 // --- Constants ---
-const INITIAL_BALANCE = 30; // UPDATED: Set to 30 as requested
-const DAILY_LOGIN_BONUS = 10;
+const INITIAL_BALANCE = 30;
 const MUSIC_URL = "https://cdn.pixabay.com/audio/2022/10/25/audio_517409292a.mp3";
 
 // --- Haptic Feedback Helper ---
@@ -544,21 +543,7 @@ const GrandUnlockOverlay = ({ onClose }: { onClose: () => void }) => {
     );
 };
 
-const DailyBonusModal = ({ onClose }: { onClose: () => void }) => {
-    const { t } = useLanguage();
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative w-full max-w-sm bg-[#1a0b2e] border border-primary/30 rounded-2xl p-8 flex flex-col items-center text-center shadow-[0_0_50px_rgba(244,192,37,0.2)] animate-[float_4s_ease-in-out_infinite]">
-                <div className="absolute -top-12"><div className="relative size-24"><div className="absolute inset-0 bg-primary/40 blur-xl rounded-full animate-pulse"></div><div className="relative size-24 bg-gradient-to-br from-primary to-[#b4860b] rounded-full border-4 border-[#1a0b2e] flex items-center justify-center shadow-lg"><span className="material-symbols-outlined text-4xl text-[#1a0b2e]" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span></div></div></div>
-                <h2 className="text-2xl font-bold text-white mt-8 mb-2">{t('bonus.title')}</h2>
-                <p className="text-[#bab29c] text-sm mb-6">{t('bonus.desc')}</p>
-                <div className="flex items-center gap-2 text-4xl font-bold text-primary mb-8 drop-shadow-[0_0_10px_rgba(244,192,37,0.5)]"><span>+{DAILY_LOGIN_BONUS}</span><span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>monetization_on</span></div>
-                <button onClick={onClose} className="w-full py-3.5 bg-gradient-to-r from-primary to-[#eab308] text-[#1a0b2e] font-bold rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg">{t('bonus.btn')}</button>
-            </div>
-        </div>
-    );
-};
+// DailyBonus removed
 
 const InsufficientFundsModal = ({ onClose, onGoStore }: { onClose: () => void, onGoStore: () => void }) => {
     const { t } = useLanguage();
@@ -815,7 +800,6 @@ const HomePage = () => {
     const navigate = useNavigate();
     const { t, lang, setLang } = useLanguage();
     const [balance, setBalance] = useState(getUserBalance());
-    const [showDailyBonus, setShowDailyBonus] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
 
     useEffect(() => {
@@ -828,7 +812,6 @@ const HomePage = () => {
             const today = new Date().toDateString();
 
             if (lastLoginDate !== today) {
-                const currentBalance = getUserBalance();
                 const isFreshUser = localStorage.getItem('user_balance') === null;
 
                 // Endowed Progress Initialization check
@@ -838,10 +821,7 @@ const HomePage = () => {
                     localStorage.setItem('user_total_recharge', ENDOWED_PROGRESS.toString());
                 }
 
-                if (!isFreshUser) {
-                    setUserBalance(currentBalance + DAILY_LOGIN_BONUS);
-                    setShowDailyBonus(true);
-                } else {
+                if (isFreshUser) {
                     setUserBalance(INITIAL_BALANCE);
                 }
                 localStorage.setItem('last_login_date', today);
@@ -895,7 +875,6 @@ const HomePage = () => {
 
     return (
         <div className="bg-background-dark font-display text-white min-h-[100dvh] relative overflow-hidden">
-            {showDailyBonus && <DailyBonusModal onClose={() => setShowDailyBonus(false)} />}
             <LoginModal
                 isOpen={showLoginModal}
                 onClose={() => setShowLoginModal(false)}

@@ -108,7 +108,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { key: 'daily', zh: '每日指引 1次/天', en: 'Daily Guidance 1x/day' },
       { key: 'ai', zh: '基础 AI 解读', en: 'Basic AI Reading' },
       { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
-      { key: 'bonus', zh: '每日 10 金币', en: '10 Coins Daily' },
     ],
   },
   {
@@ -126,7 +125,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { key: 'minor', zh: '小阿卡纳全牌库', en: 'Full Minor Arcana' },
       { key: 'ai', zh: '深度 AI 解读', en: 'Deep AI Reading' },
       { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
-      { key: 'bonus', zh: '每日 30 金币', en: '30 Coins Daily' },
     ],
   },
   {
@@ -145,7 +143,6 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
       { key: 'minor', zh: '小阿卡纳全牌库', en: 'Full Minor Arcana' },
       { key: 'ai', zh: '大师级 AI 解读', en: 'Master AI Reading' },
       { key: 'journal', zh: '无限日志保存', en: 'Unlimited Journal' },
-      { key: 'bonus', zh: '每日 60 金币', en: '60 Coins Daily' },
     ],
   },
 ];
