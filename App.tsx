@@ -924,9 +924,9 @@ const HomePage = () => {
                                         <p className="text-[#bab29c] text-xs mb-2 truncate">{lang === 'zh' ? spread.description : spread.descriptionEn}</p>
                                         <span className="bg-primary/10 border border-primary/20 backdrop-blur-sm inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-primary/90 font-medium">
                                             <span className="material-symbols-outlined text-[10px]">
-                                                monetization_on
+                                                auto_awesome
                                             </span>
-                                            {`${spread.cost} ${t('store.coins')}/One`}
+                                            {lang === 'zh' ? '精准解牌' : 'AI Reading'}
                                         </span>
                                     </div>
                                     <div className="size-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors shrink-0">
@@ -1008,7 +1008,7 @@ const QuestionGuide = () => {
                             className="pointer-events-auto shadow-[0_0_30px_rgba(244,192,37,0.4)] flex w-full max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-14 bg-gradient-to-r from-[#f4c025] to-[#eab308] text-[#1a1625] text-lg font-bold tracking-wide hover:brightness-110 active:scale-[0.98] transition-all duration-200"
                         >
                             <span className="mr-2 material-symbols-outlined font-bold">playing_cards</span>
-                            <span>{t('guide.start')} ({spread?.cost} {t('store.coins')})</span>
+                            <span>{t('guide.start')}</span>
                         </button>
                     </div>
                     <BottomNav active="home" />
@@ -1020,30 +1020,18 @@ const QuestionGuide = () => {
 
 const PaymentScreen = () => {
     const navigate = useNavigate();
-    const { t } = useLanguage();
+    const { t, lang } = useLanguage();
     const location = useLocation();
     const { spreadId, question } = location.state || { spreadId: 'daily', question: '' };
     const spread = SPREADS[spreadId];
 
-    const deductionPerformedRef = useRef(false);
-
     useEffect(() => {
-        if (!deductionPerformedRef.current) {
-            const currentBalance = getUserBalance();
-            if (currentBalance >= spread.cost) {
-                setUserBalance(currentBalance - spread.cost);
-                deductionPerformedRef.current = true;
-            } else {
-                navigate('/store');
-                return;
-            }
-        }
         const timer = setTimeout(() => {
             navigate('/shuffle', { state: { spreadId, question }, replace: true });
         }, 2400);
 
         return () => clearTimeout(timer);
-    }, [navigate, spreadId, question, spread.cost]);
+    }, [navigate, spreadId, question]);
 
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden">
@@ -1063,15 +1051,15 @@ const PaymentScreen = () => {
                     <div className="absolute inset-0 bg-primary/20 rounded-full blur-[60px] animate-pulse-slow"></div>
                     <div className="relative size-32 animate-float">
                         <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-[#D4A010] to-[#8E6A05] shadow-[0_0_30px_rgba(244,192,37,0.4)] opacity-80 backdrop-blur-sm border border-white/20 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-background-dark/80 drop-shadow-sm" style={{ fontSize: "64px" }}>monetization_on</span>
+                            <span className="material-symbols-outlined text-background-dark/80 drop-shadow-sm" style={{ fontSize: "64px" }}>auto_awesome</span>
                         </div>
                         <div className="absolute top-0 right-0 w-2 h-2 bg-primary rounded-full animate-ping"></div>
                         <div className="absolute bottom-2 left-2 w-1.5 h-1.5 bg-white rounded-full animate-ping delay-100"></div>
                     </div>
                 </div>
                 <div className="flex flex-col items-center animate-shimmer">
-                    <h1 className="text-primary tracking-tight text-[40px] font-bold leading-none px-4 text-center drop-shadow-[0_0_15px_rgba(244,192,37,0.5)]">
-                        -{spread?.cost} <span className="text-3xl font-body">{t('store.coins')}</span>
+                    <h1 className="text-primary tracking-tight text-[32px] font-bold leading-none px-4 text-center drop-shadow-[0_0_15px_rgba(244,192,37,0.5)]">
+                        {lang === 'zh' ? '正在连接星辰能量...' : 'Connecting to stars...'}
                     </h1>
                 </div>
                 <div className="mt-8 px-8 py-3 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
