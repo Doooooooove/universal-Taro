@@ -16,7 +16,7 @@ const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
 // 按订阅等级选择模型
 const PLAN_MODEL_MAP: Record<string, string> = {
   free: 'Qwen/Qwen3-8B',
-  plus: 'Qwen/Qwen3-VL-30B-A3B-Instruct',
+  plus: 'zai-org/GLM-4.5V',
   pro: 'deepseek-ai/DeepSeek-V3',
 }
 const DEFAULT_MODEL = 'Qwen/Qwen3-8B'
@@ -117,7 +117,7 @@ serve(async (req) => {
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (sub && sub.expires_at && new Date(sub.expires_at) > new Date()) {
         planType = sub.plan_type || 'free'
