@@ -4,6 +4,7 @@ import BottomNav from './components/BottomNav';
 import BackHeader from './components/BackHeader';
 import { SPREADS, MOCK_CARDS, CARD_BACK_IMAGE, UNLOCK_THRESHOLD, ENDOWED_PROGRESS, SUBSCRIPTION_PLANS, PlanType, AFDIAN_SPONSOR_URL } from './constants';
 import { createSubscriptionIntent, verifySubscription, getSubscriptionStatus } from './services/subscriptionService';
+import { signInWithPassword, signUpWithPassword, signOut } from './services/authService';
 import { getDeepSeekInterpretation as getTarotInterpretation } from './services/deepseekService';
 import { SpreadType, Card, Reading, SpreadConfig } from './types';
 import { Sparkles, Lock, Mail, ArrowRight, User, Coins, LogOut, CheckCircle2, Loader2, Star } from 'lucide-react';
@@ -352,11 +353,11 @@ const getAuth = (): AuthData | null => {
     }
 };
 
-const setAuth = (identifier: string, type: 'phone' | 'email') => {
+const setAuth = (identifier: string, type: 'phone' | 'email', id?: string) => {
     const authData: AuthData = {
         identifier,
         type,
-        id: Date.now().toString(),
+        id: id || Date.now().toString(),
         loginTime: new Date().toISOString()
     };
     localStorage.setItem('user_auth', JSON.stringify(authData));
@@ -1657,22 +1658,41 @@ const SettingsScreen = () => {
 
 const LoginScreen = () => {
     const navigate = useNavigate();
-    const { t } = useLanguage();
-    const [loginMethod, setLoginMethod] = useState<'phone' | 'email'>('phone');
-    const [identifier, setIdentifier] = useState('');
-    const [code, setCode] = useState('');
-    const [timer, setTimer] = useState(0);
+    const { t, lang } = useLanguage();
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        let interval: ReturnType<typeof setInterval>;
-        if (timer > 0) interval = setInterval(() => setTimer(t => t - 1), 1000);
-        return () => clearInterval(interval);
-    }, [timer]);
-
-    const handleSendCode = () => { setTimer(60); showToast(t('toast.code_sent'), 'sms'); };
-    const handleLogin = () => { triggerHaptic(); if (!agreed) { showToast('Please agree to terms', 'assignment_late'); return; } if (!code) { showToast(t('toast.code_err'), 'lock'); return; } setAuth(identifier, loginMethod); showToast(t('toast.login_success'), 'check_circle'); setTimeout(() => navigate('/profile', { replace: true }), 1000); };
+    const handleAuth = async () => { 
+        triggerHaptic(); 
+        if (!agreed) { showToast('Please agree to terms', 'assignment_late'); return; } 
+        if (!email || !password) { showToast(lang === 'zh' ? '请输入邮箱和密码' : 'Enter email and password', 'lock'); return; } 
+        
+        setLoading(true);
+        if (isLogin) {
+            const { user, error } = await signInWithPassword(email, password);
+            if (error || !user) {
+                showToast(error?.message || (lang === 'zh' ? '登录失败' : 'Login failed'), 'error');
+            } else {
+                setAuth(email, 'email', user.id);
+                showToast(t('toast.login_success'), 'check_circle');
+                setTimeout(() => navigate('/profile', { replace: true }), 1000);
+            }
+        } else {
+            const { user, error } = await signUpWithPassword(email, password);
+            if (error || !user) {
+                showToast(error?.message || (lang === 'zh' ? '注册失败' : 'Signup failed'), 'error');
+            } else {
+                setAuth(email, 'email', user.id);
+                showToast(lang === 'zh' ? '注册成功' : 'Signup success', 'check_circle');
+                setTimeout(() => navigate('/profile', { replace: true }), 1000);
+            }
+        }
+        setLoading(false);
+    };
 
     return (
         <div className="relative flex h-screen w-full flex-col bg-background-dark overflow-hidden font-display">
@@ -1680,9 +1700,20 @@ const LoginScreen = () => {
             <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-[#3a206e] via-[#1a0b2e] to-black"></div>
             <button onClick={() => navigate(-1)} className="absolute top-12 left-6 z-50 flex size-10 items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 transition-all border border-white/5"><span className="material-symbols-outlined" style={{ fontSize: "20px" }}>arrow_back</span></button>
             <div className="relative z-10 flex flex-col justify-center h-full px-8 pb-20">
-                <div className="mb-8"><h1 className="text-4xl font-bold text-white mb-2">{t('login.title')}</h1><p className="text-white/50 text-sm">{t('login.subtitle')}</p></div>
-                <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 mb-6 relative"><div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg transition-all duration-300 shadow-lg ${loginMethod === 'phone' ? 'left-1' : 'left-[calc(50%+3px)]'}`}></div><button onClick={() => { setLoginMethod('phone'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'phone' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_phone')}</button><button onClick={() => { setLoginMethod('email'); setIdentifier(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${loginMethod === 'email' ? 'text-background-dark' : 'text-white/60'}`}>{t('login.method_email')}</button></div>
-                <div className="flex flex-col gap-6"><div className="space-y-4"><div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">{loginMethod === 'phone' ? 'smartphone' : 'mail'}</span><input type={loginMethod === 'phone' ? 'tel' : 'email'} placeholder={loginMethod === 'phone' ? t('login.phone') : t('login.email')} value={identifier} onChange={e => setIdentifier(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /></div><div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">lock</span><input type="number" placeholder={t('login.code')} value={code} onChange={e => setCode(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /><button onClick={handleSendCode} disabled={timer > 0} className="shrink-0 text-primary text-sm font-bold disabled:text-white/30">{timer > 0 ? `${timer}s` : t('login.get_code')}</button></div></div><div className="flex items-start gap-3 px-1"><div onClick={() => setAgreed(!agreed)} className={`mt-0.5 size-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${agreed ? 'bg-primary border-primary' : 'border-white/30 bg-transparent'}`}>{agreed && <span className="material-symbols-outlined text-black text-[12px] font-bold">check</span>}</div><p className="text-xs text-white/50 leading-relaxed select-none">{t('login.agree_prefix')} <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.terms')}</span> & <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.privacy')}</span>{t('login.agree_suffix')}</p></div><button onClick={handleLogin} className="w-full h-14 bg-gradient-to-r from-primary to-[#eab308] rounded-xl text-[#1a0b2e] text-lg font-bold tracking-wide shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110 active:scale-[0.98] transition-all">{t('login.btn')}</button></div></div>
+                <div className="mb-8"><h1 className="text-4xl font-bold text-white mb-2">{isLogin ? t('login.title') : (lang === 'zh' ? '注册账号' : 'Sign Up')}</h1><p className="text-white/50 text-sm">{t('login.subtitle')}</p></div>
+                <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 mb-6 relative"><div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-primary rounded-lg transition-all duration-300 shadow-lg ${isLogin ? 'left-1' : 'left-[calc(50%+3px)]'}`}></div><button onClick={() => { setIsLogin(true); setEmail(''); setPassword(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${isLogin ? 'text-background-dark' : 'text-white/60'}`}>{lang === 'zh' ? '登录' : 'Login'}</button><button onClick={() => { setIsLogin(false); setEmail(''); setPassword(''); }} className={`flex-1 py-2 text-sm font-bold z-10 transition-colors ${!isLogin ? 'text-background-dark' : 'text-white/60'}`}>{lang === 'zh' ? '注册' : 'Sign Up'}</button></div>
+                <div className="flex flex-col gap-6">
+                    <div className="space-y-4">
+                        <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">mail</span><input type="email" placeholder={t('login.email')} value={email} onChange={e => setEmail(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /></div>
+                        <div className="glass-panel rounded-xl px-4 py-3 flex items-center gap-3 border border-white/10 focus-within:border-primary/50 transition-colors"><span className="material-symbols-outlined text-white/40">lock</span><input type="password" placeholder={lang === 'zh' ? '密码 (最少6位)' : 'Password (min 6 chars)'} value={password} onChange={e => setPassword(e.target.value)} className="bg-transparent border-none outline-none text-white w-full placeholder:text-white/20 focus:ring-0 p-0" /></div>
+                    </div>
+                <div className="flex items-start gap-3 px-1"><div onClick={() => setAgreed(!agreed)} className={`mt-0.5 size-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${agreed ? 'bg-primary border-primary' : 'border-white/30 bg-transparent'}`}>{agreed && <span className="material-symbols-outlined text-black text-[12px] font-bold">check</span>}</div><p className="text-xs text-white/50 leading-relaxed select-none">{t('login.agree_prefix')} <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.terms')}</span> & <span onClick={() => setShowTerms(true)} className="text-primary hover:underline cursor-pointer">{t('login.privacy')}</span>{t('login.agree_suffix')}</p></div>
+                <button onClick={handleAuth} disabled={loading} className="w-full h-14 bg-gradient-to-r from-primary to-[#eab308] rounded-xl text-[#1a0b2e] text-lg font-bold tracking-wide shadow-[0_0_20px_rgba(244,192,37,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+                    {loading && <span className="material-symbols-outlined animate-spin" style={{ fontSize: '20px' }}>refresh</span>}
+                    {isLogin ? t('login.btn') : (lang === 'zh' ? '注册并登录' : 'Sign Up & Login')}
+                </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -1705,7 +1736,7 @@ const ProfileScreen = () => {
     }, []);
 
     const toggleSetting = (key: string) => { const newSettings = { ...settings, [key]: !settings[key] }; setSettings(newSettings); saveSettings(newSettings); triggerHaptic(); };
-    const handleLogout = () => { if (window.confirm(t('profile.logout_confirm'))) { clearAuth(); showToast(t('toast.logout'), 'logout'); } };
+    const handleLogout = async () => { if (window.confirm(t('profile.logout_confirm'))) { await signOut(); clearAuth(); showToast(t('toast.logout'), 'logout'); } };
     const handleDeleteAccount = () => { if (window.confirm(t('profile.delete_confirm'))) { clearAuth(); localStorage.clear(); window.location.reload(); } };
     const getMaskedIdentifier = () => { if (!auth) return ''; if (auth.type === 'email') { const [name, domain] = auth.identifier.split('@'); return `${name.substring(0, 1)}***@${domain}`; } return auth.identifier.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'); };
 
