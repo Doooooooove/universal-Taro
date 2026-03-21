@@ -316,7 +316,15 @@ const addToTotalRecharge = (amount: number) => {
 
 const getReadings = (): Reading[] => {
     const saved = localStorage.getItem('user_readings');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) throw new Error('invalid format');
+        return parsed;
+    } catch {
+        localStorage.removeItem('user_readings');
+        return [];
+    }
 };
 
 const saveReading = (reading: Reading) => {
@@ -344,11 +352,20 @@ const getAuth = (): AuthData | null => {
     if (!saved) return null;
     try {
         const parsed = JSON.parse(saved);
+        if (typeof parsed !== 'object' || parsed === null) {
+            localStorage.removeItem('user_auth');
+            return null;
+        }
         if (parsed.phone && !parsed.identifier) {
             return { identifier: parsed.phone, type: 'phone', id: parsed.id, loginTime: parsed.loginTime };
         }
+        if (!parsed.identifier) {
+            localStorage.removeItem('user_auth');
+            return null;
+        }
         return parsed;
     } catch {
+        localStorage.removeItem('user_auth');
         return null;
     }
 };
@@ -371,7 +388,15 @@ const clearAuth = () => {
 
 const getSettings = () => {
     const saved = localStorage.getItem('user_settings');
-    return saved ? JSON.parse(saved) : { music: true, haptic: true, notification: false };
+    if (!saved) return { music: true, haptic: true, notification: false };
+    try {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed !== 'object' || parsed === null) throw new Error('invalid format');
+        return { music: true, haptic: true, notification: false, ...parsed };
+    } catch {
+        localStorage.removeItem('user_settings');
+        return { music: true, haptic: true, notification: false };
+    }
 };
 
 const saveSettings = (settings: any) => {
