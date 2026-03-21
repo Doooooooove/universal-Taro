@@ -153,6 +153,13 @@ serve(async (req) => {
 
     // 如果匹配到用户，激活订阅
     if (matchedUserId) {
+      // 先查询当前的订阅状态
+      const { data: currentSub } = await supabase
+        .from("user_subscriptions")
+        .select("expires_at")
+        .eq("user_id", matchedUserId)
+        .single();
+        
       // 更新订单的 matched_user_id
       await supabase
         .from("afdian_orders")
@@ -161,7 +168,13 @@ serve(async (req) => {
 
       const planType = getPlanType(order.plan_id);
       if (planType) {
-        const expiresAt = new Date();
+        // 时间累加逻辑：如果当前没过期，就在当前到期时间上加；如果过期了，就从今天开始算
+        const now = new Date();
+        const baseDate = (currentSub?.expires_at && new Date(currentSub.expires_at) > now) 
+          ? new Date(currentSub.expires_at) 
+          : now;
+          
+        const expiresAt = new Date(baseDate);
         expiresAt.setMonth(expiresAt.getMonth() + (order.month || 1));
 
         await supabase

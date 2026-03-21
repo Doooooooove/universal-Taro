@@ -128,10 +128,22 @@ serve(async (req) => {
             app_user_id: user.id,
           });
 
+        // 获取当前订阅
+        const { data: currentSub } = await supabaseAdmin
+          .from("user_subscriptions")
+          .select("expires_at")
+          .eq("user_id", user.id)
+          .single();
+
         // 激活订阅
         const planType = getPlanType(matchedOrder.plan_id);
         if (planType) {
-          const expiresAt = new Date();
+          const now = new Date();
+          const baseDate = (currentSub?.expires_at && new Date(currentSub.expires_at) > now) 
+            ? new Date(currentSub.expires_at) 
+            : now;
+            
+          const expiresAt = new Date(baseDate);
           expiresAt.setMonth(expiresAt.getMonth() + (matchedOrder.month || 1));
 
           await supabaseAdmin
@@ -234,7 +246,18 @@ serve(async (req) => {
 
                 const planType = getPlanType(retryOrder.plan_id);
                 if (planType) {
-                  const expiresAt = new Date();
+                  const { data: currentSub } = await supabaseAdmin
+                    .from("user_subscriptions")
+                    .select("expires_at")
+                    .eq("user_id", user.id)
+                    .single();
+                    
+                  const now = new Date();
+                  const baseDate = (currentSub?.expires_at && new Date(currentSub.expires_at) > now) 
+                    ? new Date(currentSub.expires_at) 
+                    : now;
+                    
+                  const expiresAt = new Date(baseDate);
                   expiresAt.setMonth(expiresAt.getMonth() + (retryOrder.month || 1));
 
                   await supabaseAdmin
