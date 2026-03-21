@@ -71,7 +71,7 @@ serve(async (req) => {
       .from("afdian_orders")
       .select("id")
       .eq("out_trade_no", order.out_trade_no)
-      .single();
+      .maybeSingle();
 
     if (existingOrder) {
       console.log("Order already processed:", order.out_trade_no);
@@ -113,7 +113,7 @@ serve(async (req) => {
       .from("afdian_user_bindings")
       .select("app_user_id")
       .eq("afdian_user_id", order.user_id)
-      .single();
+      .maybeSingle();
 
     let matchedUserId: string | null = binding?.app_user_id || null;
 
@@ -128,7 +128,7 @@ serve(async (req) => {
         .gte("created_at", fiveMinutesAgo)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (intent) {
         matchedUserId = intent.user_id;
@@ -158,7 +158,7 @@ serve(async (req) => {
         .from("user_subscriptions")
         .select("expires_at")
         .eq("user_id", matchedUserId)
-        .single();
+        .maybeSingle();
         
       // 更新订单的 matched_user_id
       await supabase

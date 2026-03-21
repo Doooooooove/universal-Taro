@@ -72,7 +72,7 @@ serve(async (req) => {
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let matched = false;
 
@@ -85,7 +85,7 @@ serve(async (req) => {
         .from("afdian_user_bindings")
         .select("afdian_user_id")
         .eq("app_user_id", user.id)
-        .single();
+        .maybeSingle();
 
       let matchQuery = supabaseAdmin
         .from("afdian_orders")
@@ -102,7 +102,7 @@ serve(async (req) => {
         matchQuery = matchQuery.eq("afdian_user_id", binding.afdian_user_id);
       }
 
-      const { data: matchedOrder } = await matchQuery.single();
+      const { data: matchedOrder } = await matchQuery.maybeSingle();
 
       if (matchedOrder) {
         // 匹配成功！
@@ -133,7 +133,7 @@ serve(async (req) => {
           .from("user_subscriptions")
           .select("expires_at")
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
         // 激活订阅
         const planType = getPlanType(matchedOrder.plan_id);
@@ -222,7 +222,7 @@ serve(async (req) => {
                 .gte("created_at", thirtyMinutesAgo)
                 .order("created_at", { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
               if (retryOrder) {
                 matched = true;
@@ -250,7 +250,7 @@ serve(async (req) => {
                     .from("user_subscriptions")
                     .select("expires_at")
                     .eq("user_id", user.id)
-                    .single();
+                    .maybeSingle();
                     
                   const now = new Date();
                   const baseDate = (currentSub?.expires_at && new Date(currentSub.expires_at) > now) 
@@ -287,7 +287,7 @@ serve(async (req) => {
       .from("user_subscriptions")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     return new Response(
       JSON.stringify({
