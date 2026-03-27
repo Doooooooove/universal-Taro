@@ -129,11 +129,10 @@ serve(async (req) => {
     const modelName = PLAN_MODEL_MAP[planType] || DEFAULT_MODEL
     console.log(`User ${user.id} has plan ${planType}, using model: ${modelName} for spread: ${spreadId}`)
 
-    // 管理员白名单 - 跳过所有限制，使用最高级模型
+    // 管理员白名单 - 仅跳过次数限制，其他权益按实际方案走
     const ADMIN_IDS = ['4419b3b4-df72-497f-9ecc-ebae8fcb3e43']
     const isAdmin = ADMIN_IDS.includes(user.id)
-    const finalModel = isAdmin ? PLAN_MODEL_MAP['pro'] : modelName
-    if (isAdmin) console.log(`Admin user detected, bypassing all limits, using model: ${finalModel}`)
+    if (isAdmin) console.log(`Admin user detected, rate limits bypassed`)
 
     // 1. 越权阻断 (Tier Blocking) - 管理员跳过
     if (!isAdmin) {
@@ -197,7 +196,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${SILICONFLOW_API_KEY}`
       },
       body: JSON.stringify({
-        model: finalModel,
+        model: modelName,
         messages: [
           {
             role: 'system',
