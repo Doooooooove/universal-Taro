@@ -3,6 +3,7 @@
     "template": "vite",
     "build": {
         "command": "npm run build",
-        "output": "./dist"
+        "output": "./dist",
+        "node_version": "20"
     }
 }
