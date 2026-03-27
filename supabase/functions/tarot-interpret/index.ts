@@ -129,12 +129,20 @@ serve(async (req) => {
     const modelName = PLAN_MODEL_MAP[planType] || DEFAULT_MODEL
     console.log(`User ${user.id} has plan ${planType}, using model: ${modelName} for spread: ${spreadId}`)
 
-    // 1. 越权阻断 (Tier Blocking)
-    if (spreadId === 'hexagram' && planType !== 'pro') {
-      return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
-    }
-    if (spreadId === 'three_card' && planType === 'free') {
-      return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    // 管理员白名单 - 跳过所有限制，使用最高级模型
+    const ADMIN_IDS = ['4419b3b4-df72-497f-9ecc-ebae8fcb3e43']
+    const isAdmin = ADMIN_IDS.includes(user.id)
+    const finalModel = isAdmin ? PLAN_MODEL_MAP['pro'] : modelName
+    if (isAdmin) console.log(`Admin user detected, bypassing all limits, using model: ${finalModel}`)
+
+    // 1. 越权阻断 (Tier Blocking) - 管理员跳过
+    if (!isAdmin) {
+      if (spreadId === 'hexagram' && planType !== 'pro') {
+        return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      if (spreadId === 'three_card' && planType === 'free') {
+        return new Response(JSON.stringify({ error: 'UPGRADE_REQUIRED' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
     }
 
     // 2. 次数防刷 (Rate Limiting)
@@ -147,7 +155,7 @@ serve(async (req) => {
       limit = planType === 'pro' ? 3 : 0
     }
 
-    if (limit > 0) {
+    if (limit > 0 && !isAdmin) {
       // 查询今日已用次数 (UTC时间)
       const startOfDay = new Date()
       startOfDay.setUTCHours(0, 0, 0, 0)
@@ -189,7 +197,7 @@ serve(async (req) => {
         'Authorization': `Bearer ${SILICONFLOW_API_KEY}`
       },
       body: JSON.stringify({
-        model: modelName,
+        model: finalModel,
         messages: [
           {
             role: 'system',
