@@ -15,11 +15,11 @@ const SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
 
 // 按订阅等级选择模型
 const PLAN_MODEL_MAP: Record<string, string> = {
-  free: 'Qwen/Qwen2.5-7B-Instruct',
-  plus: 'THUDM/glm-4-9b-chat',
+  free: 'Qwen/Qwen3-8B',
+  plus: 'zai-org/GLM-4.5V',
   pro: 'deepseek-ai/DeepSeek-V3',
 }
-const DEFAULT_MODEL = 'Qwen/Qwen2.5-7B-Instruct'
+const DEFAULT_MODEL = 'Qwen/Qwen3-8B'
 
 const SYSTEM_PROMPT = `你是一位经验丰富、洞察人心的塔罗占卜师。你不做绝对判断，也不预测具体事件的发生时间，而是通过牌的象征意义，引导提问者理解当下的状态、内在的情绪，以及可能的发展方向。
 
